@@ -1,0 +1,125 @@
+1. Placement Registration & Eligibility Management
+@startuml
+actor Student
+actor Faculty
+actor Admin
+participant "SmartPlace System" as System
+
+Student -> System : Register / Login
+System -> Student : Authentication Success
+
+Student -> System : Submit profile & documents
+System -> Faculty : Request verification
+Faculty -> System : Verify / Reject details
+
+alt Verified
+    System -> Student : Eligibility confirmed
+    System -> Admin : Update eligible list
+else Rejected
+    System -> Student : Correction required
+end
+@enduml
+
+
+
+2. Placement Drive Application Management
+@startuml
+actor Student
+actor Recruiter
+participant "SmartPlace System" as System
+
+Recruiter -> System : Create placement drive
+System -> System : Validate & publish drive
+
+Student -> System : View drives
+Student -> System : Apply for drive
+
+System -> Recruiter : Share applicant list
+Recruiter -> System : Update application status
+System -> Student : Notify status
+@enduml
+
+
+3. Alumni Engagement & Career Support
+@startuml
+actor Student
+actor Alumni
+participant "SmartPlace System" as System
+
+Student -> System : Post query / career doubt
+System -> Alumni : Notify query
+
+Alumni -> System : Respond / mentor
+System -> Student : Deliver response
+
+opt Continued interaction
+    Student -> System : Follow-up query
+    System -> Alumni : Notify follow-up
+end
+@enduml
+
+
+4. Slot Allocation & Scheduling for Recruiting Companies
+@startuml
+actor Recruiter
+actor Admin
+participant "SmartPlace System" as System
+
+Recruiter -> System : Request interview slot
+System -> Admin : Forward slot request
+
+Admin -> System : Allocate date & time
+System -> Recruiter : Confirm slot
+System -> System : Update placement calendar
+@enduml
+
+
+
+5. Offer Generation, Acceptance & Tracking
+@startuml
+actor Recruiter
+actor Student
+actor Admin
+participant "SmartPlace System" as System
+
+Recruiter -> System : Upload offer details
+System -> Student : Notify offer
+
+Student -> System : Accept / Reject offer
+
+System -> Admin : Update placement records
+System -> Recruiter : Share candidate response
+@enduml
+
+
+6. Career Preparation & Assessment
+@startuml
+actor Faculty
+actor Student
+participant "SmartPlace System" as System
+
+Faculty -> System : Upload course / mock test
+System -> Student : Notify availability
+
+Student -> System : Attend course / take test
+System -> System : Evaluate performance
+System -> Student : Display results & feedback
+@enduml
+
+
+
+7. Faculty Engagement & Course Support
+@startuml
+actor Faculty
+actor Student
+participant "SmartPlace System" as System
+
+Faculty -> System : Upload learning material
+System -> Student : Notify course update
+
+Student -> System : View course content
+Student -> System : Submit doubts
+System -> Faculty : Forward doubts
+Faculty -> System : Respond
+System -> Student : Deliver response
+@enduml

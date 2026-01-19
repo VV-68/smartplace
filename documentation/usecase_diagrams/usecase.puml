@@ -1,0 +1,43 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Company" as c
+actor "Faculty" as f
+actor "Alumni" as al
+actor "Student" as s
+actor "Admin" as a
+
+rectangle "Placement Management System" {
+    
+        usecase "Register for Placement &\nManage Eligibility" as UC1
+        usecase "Prepare for Placement" as UC6
+
+        usecase "Manage Placement Drive\nApplications" as UC2
+        usecase "Allocate Slots For Companies" as UC4
+        usecase "Generate,\n& Track Offers" as UC5
+
+        usecase "Engage Alumni Support" as UC3
+        usecase "Engage Faculty Support" as UC7
+}
+
+' Associations without arrowheads
+c -- UC4
+c -- UC5 : Offer Generation
+f -- UC7
+al -- UC3
+
+' Right side actors
+UC1 -- s
+UC2 -- s
+UC6 -- s
+UC3 -- s
+UC5 -- s : Acceptance
+
+UC1 -- a
+UC4 -- a
+UC5 -- a : Tracking
+UC7 -- a
+UC3 -- a
+
+@enduml
