@@ -1,125 +1,191 @@
-1. Placement Registration & Eligibility Management
-@startuml
-actor Student
-actor Faculty
-actor Admin
-participant "SmartPlace System" as System
+1. Registration
 
-Student -> System : Register / Login
-System -> Student : Authentication Success
+sequenceDiagram
+    autonumber
+    actor User
+    participant Login as Login Page
+    participant Auth as Auth Service
+    participant DB as Database
+    participant Home as Home Page
 
-Student -> System : Submit profile & documents
-System -> Faculty : Request verification
-Faculty -> System : Verify / Reject details
+    User->>Login: Enter Credentials
+    Login->>Auth: Validate(user, pass)
+    
+    Note over Auth, DB: Logic for checking credentials
+    Auth->>DB: Query User Records
+    DB-->>Auth: User Found / Not Found
 
-alt Verified
-    System -> Student : Eligibility confirmed
-    System -> Admin : Update eligible list
-else Rejected
-    System -> Student : Correction required
-end
-@enduml
+    alt New Registration
+        Auth->>DB: Create New Record
+        DB-->>Auth: Success
+        Auth-->>Login: Account Created
+        Login->>Home: Redirect to Dashboard
+    else Successful Login
+        Auth-->>Login: Token Issued
+        Login->>Home: Redirect to Dashboard
+    else Rejected
+        Auth-->>Login: 401 Unauthorized
+        Login-->>User: Show Error Message
+    end
 
+2. Authentication
+
+sequenceDiagram
+    autonumber
+    actor User as New User
+    actor Admin as Admin / Moderator
+    participant System as Authentication Page(only for admin)
+    participant DB as Database
+
+    User->>System: Register (Selects Role: Faculty/Student/Recruiter)
+    System->>DB: Create Pending Profile
+    System->>Admin: Alert: New Role Verification Required
+
+    Note over Admin, System: Admin reviews credentials based on Role Type
+
+    alt Approved
+        Admin->>System: Confirm Verification
+        System->>DB: Update Status to "Active"
+        System->>DB: Assign Permissions (Faculty/Student/Recruiter)
+        System-->>User: Verification Success (Access Granted)
+    else Rejected
+        Admin->>System: Reject Application
+        System->>DB: Update Status to "Suspended"
+        System-->>User: Notification: Verification Failed
+    end
 
 
 2. Placement Drive Application Management
-@startuml
-actor Student
-actor Recruiter
-participant "SmartPlace System" as System
+sequenceDiagram
+    autonumber
+    actor Recruiter
+    actor Admin
+    participant Reg as Drive Registration Page
+    participant System as Admin Panel
+    participant DB as Database
 
-Recruiter -> System : Create placement drive
-System -> System : Validate & publish drive
+    Recruiter->>Reg: Register Drive (Select Dates)
+    activate Reg
+    Reg->>DB: Create New Drive Entry (Status: Pending)
+    DB->>Admin: Alert: New Drive requested!
+    deactivate Reg
+    
+    Note over Admin, System: Admin reviews dates on Admin Panel
+    
+    Admin->>System: Process Request (Approve/Reject)
+    activate System
+    System->>Reg: Send Decision
+    deactivate System
 
-Student -> System : View drives
-Student -> System : Apply for drive
+    alt Approved
+        Reg->>DB: Update Status to "Approved"
+        Reg-->>Recruiter: Drive Confirmed!
+    else Rejected
+        Reg->>DB: Update Status to "Review Required"
+        Reg-->>Recruiter: Please Reschedule (Dates Unavailable)
+    end
 
-System -> Recruiter : Share applicant list
-Recruiter -> System : Update application status
-System -> Student : Notify status
-@enduml
 
 
 3. Alumni Engagement & Career Support
-@startuml
-actor Student
-actor Alumni
-participant "SmartPlace System" as System
 
-Student -> System : Post query / career doubt
-System -> Alumni : Notify query
+sequenceDiagram
+    autonumber
+    actor User
+    actor Alumni
+    participant Page as Alumni Chat Page
+    participant DB as Database
 
-Alumni -> System : Respond / mentor
-System -> Student : Deliver response
+    Note over User, Alumni: Real-time Discussion Flow
 
-opt Continued interaction
-    Student -> System : Follow-up query
-    System -> Alumni : Notify follow-up
-end
-@enduml
+    User->>Page: Posts query ("How is the placement?")
+    Page->>DB: Save Message
+    
+    par Notification Broadcast
+        DB-->>User: Message sent status
+        DB-->>Alumni: Alert: New query from User
+    end
 
+    Alumni->>Page: Types reply ("It's great!")
+    Page->>DB: Save Message
 
-4. Slot Allocation & Scheduling for Recruiting Companies
-@startuml
-actor Recruiter
-actor Admin
-participant "SmartPlace System" as System
-
-Recruiter -> System : Request interview slot
-System -> Admin : Forward slot request
-
-Admin -> System : Allocate date & time
-System -> Recruiter : Confirm slot
-System -> System : Update placement calendar
-@enduml
+    par Notification Broadcast
+        DB-->>Alumni: Message sent status
+        DB-->>User: Alert: New reply from Alumni
+    end 
 
 
 
 5. Offer Generation, Acceptance & Tracking
-@startuml
-actor Recruiter
-actor Student
-actor Admin
-participant "SmartPlace System" as System
+sequenceDiagram
+    autonumber
+    actor Recruiter
+    actor Student
+    actor Admin
+    participant System as Offer Page
+    participant DB as Database
 
-Recruiter -> System : Upload offer details
-System -> Student : Notify offer
+    Recruiter->>System: Upload Offer Details (CTC, Role, PDF)
+    System->>DB: Store Offer (Status: Pending)
+    System-->>Student: Notification: New Offer Received!
 
-Student -> System : Accept / Reject offer
+    Note over Student: Student reviews offer terms
 
-System -> Admin : Update placement records
-System -> Recruiter : Share candidate response
-@enduml
+    alt Offer Accepted
+        Student->>System: Accept Offer
+        System->>DB: Update Placement Status (Status: Placed)
+        System->>Admin: Update Placement Records
+        System-->>Recruiter: Share Candidate Acceptance
+    else Offer Rejected
+        Student->>System: Reject Offer
+        System->>DB: Update Offer (Status: Declined)
+        System-->>Recruiter: Share Candidate Rejection
+    end
 
 
 6. Career Preparation & Assessment
-@startuml
-actor Faculty
-actor Student
-participant "SmartPlace System" as System
+sequenceDiagram
+    autonumber
+    actor Faculty
+    actor Student
+    participant System as Faculty Page
+    participant DB as Database
 
-Faculty -> System : Upload course / mock test
-System -> Student : Notify availability
+    Faculty->>System: Upload Course Material / Mock Test
+    System->>DB: Store Content & Key
+    System-->>Student: Notification: New Prep Material Available
 
-Student -> System : Attend course / take test
-System -> System : Evaluate performance
-System -> Student : Display results & feedback
-@enduml
+    Note over Student: Learning & Assessment Phase
 
+    Student->>System: Attend Course / Submit Test Answers
+    activate System
+    System->>System: Auto-grade / Evaluate Performance
+    System->>DB: Save Score & Progress
+    deactivate System
 
+    System-->>Student: Display Results & Personalized Feedback
+    System-->>Faculty: Generate Class Performance Report
 
 7. Faculty Engagement & Course Support
-@startuml
-actor Faculty
-actor Student
-participant "SmartPlace System" as System
+sequenceDiagram
+    autonumber
+    actor Faculty
+    actor Student
+    participant CoursePage as Course Dashboard
+    participant DoubtPortal as Doubt Portal
+    participant DB as Database
 
-Faculty -> System : Upload learning material
-System -> Student : Notify course update
+    Faculty->>CoursePage: Upload Learning Material (PDF/Video)
+    CoursePage->>DB: Save Content
+    DB-->>Student: Push Notification: New Material Added
 
-Student -> System : View course content
-Student -> System : Submit doubts
-System -> Faculty : Forward doubts
-Faculty -> System : Respond
-System -> Student : Deliver response
-@enduml
+    Note over Student, CoursePage: Student studying phase
+
+    Student->>CoursePage: View/Download Content
+    Student->>DoubtPortal: Submit Specific Doubt
+    DoubtPortal->>DB: Log Doubt (Status: Unresolved)
+    DB-->>Faculty: Alert: New Student Query
+
+    Faculty->>DoubtPortal: Post Response/Clarification
+    DoubtPortal->>DB: Update Doubt (Status: Resolved)
+    DB-->>Student: Deliver Response
