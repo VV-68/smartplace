@@ -1,5 +1,6 @@
 @startuml
 left to right direction
+skinparam linetype polyline
 skinparam packageStyle rectangle
 
 actor "Company" as c
@@ -10,12 +11,12 @@ actor "Admin" as a
 
 rectangle "Placement Management System" {
     
-        usecase "Register for Placement &\nManage Eligibility" as UC1
+        usecase "Manage Student\nEligibility" as UC1
         usecase "Prepare for Placement" as UC6
 
-        usecase "Manage Placement Drive\nApplications" as UC2
+        usecase "Manage Placement \nApplications" as UC2
         usecase "Allocate Slots For Companies" as UC4
-        usecase "Generate,\n& Track Offers" as UC5
+        usecase "Generate\n& Track Offers" as UC5
 
         usecase "Engage Alumni Support" as UC3
         usecase "Engage Faculty Support" as UC7
