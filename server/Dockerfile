@@ -13,4 +13,4 @@ COPY . .
 EXPOSE 3000
 
 # Use 'node' for production, but for dev you'll likely use 'nodemon'
-CMD ["nodemon", "index.js"]
+CMD ["npm", "run", "dev"]
