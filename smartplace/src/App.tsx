@@ -14,6 +14,7 @@ function App() {
   return (
     <div style={{ padding: '2rem', textAlign: 'center' }}>
       <h1>SmartPlace Project</h1>
+      <h2>Shan Romio-Contributor<h2>
       <div className="card">
         <p>Status from Backend:</p>
         <code style={{ background: '#333', padding: '10px', borderRadius: '5px' }}>
