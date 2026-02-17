@@ -1,47 +1,66 @@
----
+# SmartPlace - Development Setup (Supabase Migration)
 
-# SmartPlace - Full Stack Development Setup
-
-This project is fully containerized with **Docker**. This ensures that the Arch, Windows, and Debian users on our team all have the exact same environment. No need to install Postgres or Node globally on your system.
+This project has been migrated from a local Docker-based PostgreSQL setup to **Supabase** (Online PostgreSQL). Docker is no longer required.
 
 ---
 
 ## Prerequisites
 
-You only need to install **Docker** and **Docker Compose**.
-
-* **Windows:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/). (Ensure WSL2 is enabled).
-* **Linux (Arch):** `sudo pacman -S docker docker-compose` (Then `sudo systemctl enable --now docker`).
-* **Linux (Debian/Ubuntu):** `sudo apt install docker.io docker-compose`.
+- **Node.js** (v18 or higher recommended)
+- **npm** (comes with Node.js)
+- A **Supabase** account and project.
 
 ---
 
 ## Getting Started
 
-### 1. Boot the entire stack
+### 1. Database Setup (Supabase)
 
-Run this command from the root directory:
+1. Create a project on [Supabase](https://supabase.com/).
+2. Go to **Project Settings** > **Database**.
+3. Copy the **Connection String** (URI).
+   - Ensure you use the "Transaction" or "Session" mode depending on your needs. For simple use, the standard URI is fine.
+   - Replace `[YOUR-PASSWORD]` with your actual database password.
 
-```bash
-docker compose up --build
+### 2. Backend Setup
 
-```
+1. Navigate to the `server` directory:
+   ```bash
+   cd server
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file from the example:
+   ```bash
+   cp .env.example .env
+   ```
+4. Edit `.env` and paste your Supabase connection string:
+   ```env
+   DATABASE_URL=your_supabase_connection_string_here
+   ```
+5. Start the backend:
+   ```bash
+   npm run dev
+   ```
+   The backend will run at `http://localhost:3000`.
 
-This will start:
+### 3. Frontend Setup
 
-* **Frontend:** [http://localhost:5173](https://www.google.com/search?q=http://localhost:5173) (Vite + React)
-* **Backend:** [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000) (Node Express)
-* **Database:** PostgreSQL (Internal port 5432)
-
-### 2. Adding New Dependencies
-
-If you run `npm install <package>` locally in the `/server` or `/smartplace` folders, you **must** tell Docker to rebuild the images, or the app will crash with `MODULE_NOT_FOUND`:
-
-```bash
-docker compose down
-docker compose up --build
-
-```
+1. Navigate to the `smartplace` directory:
+   ```bash
+   cd ../smartplace
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the frontend:
+   ```bash
+   npm run dev
+   ```
+   The frontend will run at `http://localhost:5173`.
 
 ---
 
@@ -51,35 +70,10 @@ docker compose up --build
 | --- | --- | --- | --- |
 | **Frontend** | React (Vite) | `5173` | `localhost:5173` |
 | **Backend** | Node.js (Express) | `3000` | `localhost:3000` |
-| **Database** | PostgreSQL 16 | `5432` | `localhost:5432` |
-
----
-
-## Database Interaction
-
-### Connecting via GUI (DBeaver/TablePlus)
-
-* **Host:** `localhost`
-* **Port:** `5432`
-* **User:** `admin`
-* **Password:** `mypassword`
-* **Database:** `smartplace_db`
-
-### Connecting via Terminal
-
-To jump into the Postgres CLI directly:
-
-```bash
-docker exec -it college_projects-db-1 psql -U admin -d smartplace_db
-
-```
+| **Database** | Supabase (Postgres) | `5432` (Cloud) | Supabase Dashboard |
 
 ---
 
 ## 🛑 Stopping the App
 
-* `Ctrl + C` in the terminal stops the logs.
-* `docker compose stop` stops the containers.
-* `docker compose down -v` **RESETS** everything (wipes the DB and volumes—use with caution!).
-
----
+- Press `Ctrl + C` in both terminal windows (server and smartplace) to stop the processes.

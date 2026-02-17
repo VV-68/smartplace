@@ -1,13 +1,14 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 app.use(cors());
 
-// Use the environment variable from docker-compose.yml
+// Use the environment variable from .env file
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
