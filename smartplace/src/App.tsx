@@ -1,26 +1,38 @@
 import { useEffect, useState } from 'react'
+import { supabase } from './lib/supabase'
+import Auth from './components/Auth'
+import HomePage from './pages/HomePage'
 
 function App() {
-  const [message, setMessage] = useState('Loading...')
+  const [session, setSession] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // We use localhost:3000 because your BROWSER is making the call
-    fetch('http://localhost:3000/')
-      .then(res => res.text())
-      .then(data => setMessage(data))
-      .catch(err => setMessage('Error connecting to backend'))
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setLoading(false)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
+  if (loading) {
+    return <div style={{ textAlign: 'center', padding: '5rem' }}>Loading application...</div>
+  }
+
   return (
-    <div style={{ padding: '2rem', textAlign: 'center' }}>
-      <h1>SmartPlace Project</h1>
-      <h2>Shan Romio-Contributor<h2>
-      <div className="card">
-        <p>Status from Backend:</p>
-        <code style={{ background: '#333', padding: '10px', borderRadius: '5px' }}>
-          {message}
-        </code>
-      </div>
+    <div className="App">
+      {!session ? (
+        <Auth />
+      ) : (
+        <HomePage user={session.user} />
+      )}
     </div>
   )
 }

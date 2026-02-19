@@ -1,0 +1,63 @@
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
+
+interface HomePageProps {
+  user: any
+}
+
+export default function HomePage({ user }: HomePageProps) {
+  const [message, setMessage] = useState('Loading...')
+  const [result, setResult] = useState('Loading...')
+
+  useEffect(() => {
+    // 1. Fetch basic backend status
+    fetch('http://localhost:3000/')
+      .then(res => res.text())
+      .then(data => setMessage(data))
+      .catch(() => setMessage('Error connecting to backend'))
+
+    // 2. Fetch protected database data
+    const fetchData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        fetch('http://localhost:3000/db', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        })
+        .then(res => {
+          if (res.status === 401) throw new Error('Unauthorized');
+          return res.json();
+        })
+        .then(data => setResult(JSON.stringify(data, null, 2)))
+        .catch(err => setResult('Error: ' + err.message));
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
+  const handleLogout = () => supabase.auth.signOut()
+
+  return (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h1>SmartPlace Dashboard</h1>
+      <p>Welcome, <strong>{user.email}</strong></p>
+      <button onClick={handleLogout} style={{ marginBottom: '2rem', padding: '0.5rem 1rem' }}>
+        Logout
+      </button>
+
+      <div className="card" style={{ textAlign: 'left', maxWidth: '600px', margin: '0 auto' }}>
+        <h3>System Status</h3>
+        <code style={{ background: '#333', color: '#fff', padding: '1rem', borderRadius: '5px', display: 'block', marginBottom: '1rem' }}>
+          {message}
+        </code>
+
+        <h3>Database Records (Protected)</h3>
+        <pre style={{ background: '#333', color: '#fff', padding: '1rem', borderRadius: '5px', overflowX: 'auto' }}>
+          {result}
+        </pre>
+      </div>
+    </div>
+  )
+}

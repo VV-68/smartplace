@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./server 
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./server:/app 
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+  frontend:
+    build: ./smartplace 
+    ports: 
+      - "5173:5173"
+    volumes:
+      - ./smartplace:/app 
+      - /app/node_modules 
+    environment:
+      - VITE_API_URL=http://localhost:3000 # Updated from 5000 to 3000
+    stdin_open: true # Highly recommended for Vite + Docker
+    tty: true        # Prevents the container from exiting immediately
+    depends_on:
+      - backend
