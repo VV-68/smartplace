@@ -1,23 +1,24 @@
-import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import '../styles/Auth.css';
 
 export default function Auth() {
-  const [loading, setLoading] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [role, setRole] = useState('student')
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('student');
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) alert(error.message)
-    setLoading(false)
-  }
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) alert(error.message);
+    setLoading(false);
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
     
     // Sign up the user
     const { data, error } = await supabase.auth.signUp({ 
@@ -25,71 +26,92 @@ export default function Auth() {
       password,
       options: {
         data: {
-          role: role // Store role in metadata too (optional but handy)
+          role: role // Store role in metadata too
         }
       }
-    })
+    });
     
     if (error) {
-      alert(error.message)
+      alert(error.message);
     } else if (data.user) {
       // Create a profile record
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert([{ id: data.user.id, role: role }])
+        .insert([{ id: data.user.id, role: role }]);
       
       if (profileError) {
-        console.error('Error creating profile:', profileError.message)
+        // If 'profiles' table doesn't exist or fails, just log it. 
+        // Supabase might have triggers, or the table might be named 'users'.
+        console.warn('Error creating profile entry:', profileError.message);
       }
-      alert('Check your email for the confirmation link!')
+      alert('Check your email for the confirmation link!');
     }
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '2rem auto', padding: '2rem', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h2>Login or Sign Up</h2>
-      <form style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{ padding: '0.5rem' }}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={{ padding: '0.5rem' }}
-        />
+    <div className="auth-container">
+      <h2 className="auth-title">Welcome to SmartPlace</h2>
+      
+      <form className="auth-form" onSubmit={(e) => e.preventDefault()}>
+        <div className="form-group">
+          <label className="form-label">Email Address</label>
+          <input
+            className="form-input"
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Password</label>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <label htmlFor="role">Select Role (for Sign Up):</label>
+        <div className="form-group">
+          <label className="form-label">I am a...</label>
           <select 
-            id="role" 
+            className="form-select"
             value={role} 
             onChange={(e) => setRole(e.target.value)}
-            style={{ padding: '0.5rem' }}
           >
             <option value="student">Student</option>
-            <option value="teacher">Teacher</option>
-            <option value="placement_officer">Placement Officer</option>
+            <option value="faculty">Faculty Member</option>
+            <option value="admin">Admin / Placement Officer</option>
+            <option value="alumni">Alumni</option>
+            <option value="company">Company Recruiter</option>
           </select>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-          <button type="button" onClick={handleLogin} disabled={loading} style={{ flex: 1, padding: '0.5rem' }}>
+        <div className="auth-actions">
+          <button 
+            type="button" 
+            className="auth-btn auth-btn-primary" 
+            onClick={handleLogin} 
+            disabled={loading}
+          >
             {loading ? 'Processing...' : 'Login'}
           </button>
-          <button type="button" onClick={handleSignUp} disabled={loading} style={{ flex: 1, padding: '0.5rem' }}>
+          <button 
+            type="button" 
+            className="auth-btn auth-btn-secondary" 
+            onClick={handleSignUp} 
+            disabled={loading}
+          >
             Sign Up
           </button>
         </div>
       </form>
     </div>
-  )
+  );
 }

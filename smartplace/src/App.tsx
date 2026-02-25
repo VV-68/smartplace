@@ -3,12 +3,16 @@ import { supabase } from './lib/supabase'
 import Auth from './components/Auth'
 import HomePage from './pages/HomePage'
 import StudentDashboard from './pages/StudentDashboard'
-import TeacherDashboard from './pages/TeacherDashboard'
+import FacultyDashboard from './pages/FacultyDashboard'
+import AdminDashboard from './pages/AdminDashboard.tsx'
+import AlumniDashboard from './pages/AlumniDashboard.tsx'
 
 function App() {
   const [session, setSession] = useState<any>(null)
   const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const[showAuth, setShowAuth] = useState(false);
+
 
   useEffect(() => {
     // Check current session
@@ -63,19 +67,32 @@ function App() {
   }
 
   if (!session) {
-    return <Auth />
+    if (showAuth) return <Auth />
+    return <HomePage onEnter={() => setShowAuth(true)} />
   }
 
-  // Role-based routing
-  switch (role) {
-    case 'student':
-      return <StudentDashboard user={session.user} />
-    case 'faculty':
-      return <TeacherDashboard user={session.user} />
-    case 'admin':
-    default:
-      return <HomePage user={session.user} />
+  const renderPage = () => {
+    // Role-based routing
+    switch (role) {
+      case 'student':
+        return <StudentDashboard user={session.user} />
+      case 'faculty':
+        return <FacultyDashboard user={session.user} />
+      case 'alumni':
+        return <AlumniDashboard user={session.user} />
+      case 'admin':
+        return <AdminDashboard user={session.user} />
+      default:
+        return <StudentDashboard user={session.user} />
+    }
   }
+
+  return (
+    <div>
+      {renderPage()}
+    </div>
+  )
+
 }
 
 export default App
