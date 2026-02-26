@@ -67,7 +67,7 @@ function App() {
   }
 
   if (!session) {
-    if (showAuth) return <Auth />
+    if (showAuth) return <Auth onBack={() => setShowAuth(false)} />
     return <HomePage onEnter={() => setShowAuth(true)} />
   }
 
