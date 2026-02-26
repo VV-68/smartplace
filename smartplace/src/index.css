@@ -1,14 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg-primary: #000000;
-  --bg-secondary: #0a0a0a;
-  --bg-tertiary: #111111;
-  --border-color: #222222;
-  --text-primary: #ffffff;
-  --text-secondary: #a0a0a0;
-  --accent-color: #ffffff;
-  --danger-color: #ff4444;
+  /* Light theme palette (default) */
+  --bg-primary: #f5f5f7;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f0f0f3;
+  --border-color: #d4d4d8;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --accent-color: #2563eb;
+  --danger-color: #dc2626;
   --radius-sm: 4px;
   --radius-md: 8px;
   --transition-speed: 0.2s;
@@ -17,9 +18,26 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: dark;
+  /* Advertise both schemes; actual colors controlled by media query below */
+  color-scheme: light dark;
   color: var(--text-primary);
   background-color: var(--bg-primary);
+}
+
+/* Dark theme overrides when user’s system prefers dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #000000;
+    --bg-secondary: #0a0a0a;
+    --bg-tertiary: #111111;
+    --border-color: #222222;
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --accent-color: #ffffff;
+    --danger-color: #ff4444;
+
+    color-scheme: dark;
+  }
 }
 
 * {

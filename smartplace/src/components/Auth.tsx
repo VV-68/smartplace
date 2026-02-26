@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import '../styles/Auth.css';
 
-export default function Auth() {
+type AuthProps = {
+  onBack?: () => void;
+};
+
+export default function Auth({ onBack }: AuthProps) {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,9 +53,27 @@ export default function Auth() {
     setLoading(false);
   };
 
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      window.location.href = '/';
+    }
+  };
+
   return (
     <div className="auth-container">
-      <h2 className="auth-title">Welcome to SmartPlace</h2>
+      <div className="auth-header">
+        <button
+          type="button"
+          className="auth-back"
+          onClick={handleBack}
+          aria-label="Back to home"
+        >
+          <span className="auth-back-icon" aria-hidden="true">←</span>
+        </button>
+        <h2 className="auth-title">Welcome to SmartPlace</h2>
+      </div>
       
       <form className="auth-form" onSubmit={(e) => e.preventDefault()}>
         <div className="form-group">
