@@ -1,4 +1,4 @@
-import './styles/HomePage.css'
+import './styles/HomePage.css';
 
 export default function HomePage({ onEnter }: { onEnter: () => void }) {
   return (
@@ -145,5 +145,5 @@ export default function HomePage({ onEnter }: { onEnter: () => void }) {
         </div>
       </footer>
     </div>
-  )
+  );
 }

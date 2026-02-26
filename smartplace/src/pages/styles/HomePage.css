@@ -5,6 +5,7 @@
   color: #ffffff;
   font-family: 'DM Sans', sans-serif;
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 /* ─── Header ─────────────────────────────────────────────── */
