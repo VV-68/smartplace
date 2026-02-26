@@ -1,0 +1,174 @@
+/* Dashboard Content Styles */
+
+.page-header {
+  margin-bottom: 3rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.page-subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* Cards & Containers */
+.content-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  overflow: hidden;
+}
+
+/* Tables */
+.table-responsive {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.data-table td {
+  padding: 1.25rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.95rem;
+  vertical-align: middle;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* User Info Cell */
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-email-text {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.user-id-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.status-badge.verified {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--accent-color);
+  border-color: var(--border-color);
+}
+
+.status-badge.unverified {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.status-badge.pending {
+  background-color: rgba(255, 165, 0, 0.1);
+  color: orange;
+  border-color: rgba(255, 165, 0, 0.2);
+}
+
+.status-badge.rejected {
+  background-color: rgba(255, 68, 68, 0.1);
+  color: var(--danger-color);
+  border-color: rgba(255, 68, 68, 0.2);
+}
+
+.status-badge.selected {
+  background-color: rgba(0, 255, 0, 0.1);
+  color: #4ade80;
+  border-color: rgba(0, 255, 0, 0.2);
+}
+
+/* Buttons */
+.action-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: var(--transition-speed);
+  font-weight: 500;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary {
+  background-color: var(--text-primary);
+  color: var(--bg-primary);
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+
+.btn-danger {
+  background: transparent;
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  color: var(--danger-color);
+}
+
+.btn-danger:hover {
+  background: var(--danger-color);
+  color: white;
+  border-color: var(--danger-color);
+}
+
+.loading-text {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 2rem;
+}

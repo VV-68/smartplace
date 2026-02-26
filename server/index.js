@@ -69,6 +69,17 @@ app.get("/db", authenticateUser, async (req, res) => {
   }
 });
 
+app.get('/student_list', authenticateUser, async (req, res) => {
+  console.log(`User ${req.user.email} is accessing student data`);
+  try {
+    const dbResult = await pool.query("select fname, lname from users where role = 'student' ");
+    res.json(dbResult.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('DB Connection failed: '+ err.message);
+  }
+});
+
 app.listen(port, () => {
   console.log(`Backend listening at http://localhost:${port}`);
 });
