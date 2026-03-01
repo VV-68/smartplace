@@ -1,21 +1,129 @@
-import { useState } from 'react';
-import DashboardLayout from '../components/layout/DashboardLayout';
-import '../styles/Dashboard.css';
+import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import DashboardLayout from "../components/layout/DashboardLayout";
+import "../styles/Dashboard.css";
 
-export default function FacultyDashboard({ user }: { user: any }) {
-  const [activeTab, setActiveTab] = useState('classes');
+interface Course {
+  course_id: number;
+  name: string;
+  availability: boolean;
+}
+
+export default function FacultyDashboard({
+  user,
+  accessToken
+}: {
+  user: any;
+  accessToken: string;
+}) {
+
+  const [activeTab, setActiveTab] = useState("classes");
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [pendingDocs, setPendingDocs] = useState<any[]>([]);
+  const [isAdvisor, setIsAdvisor] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  /* ================= AXIOS INSTANCE ================= */
+
+  const api = useMemo(() => {
+    return axios.create({
+      baseURL: import.meta.env.VITE_API_URL,
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+  }, [accessToken]);
+
+  /* ================= INITIAL LOAD ================= */
+
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        const coursesRes = await api.get("/faculty/courses");
+        setCourses(coursesRes.data);
+
+        try {
+          await api.get("/advisor/students");
+          setIsAdvisor(true);
+        } catch {
+          setIsAdvisor(false);
+        }
+
+      } catch (err) {
+        console.error("Initialization failed", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initialize();
+  }, [api]);
+
+  /* ================= LOAD STUDENTS ================= */
+
+  const loadStudents = async (courseId: number) => {
+    try {
+      const res = await api.get(`/faculty/courses/${courseId}/students`);
+      setStudents(res.data);
+      setActiveTab("students");
+    } catch (err) {
+      console.error("Failed to load students", err);
+    }
+  };
+
+  /* ================= LOAD PENDING DOCS ================= */
+
+  const loadPendingDocuments = async () => {
+    try {
+      const studentsRes = await api.get("/advisor/students");
+
+      const allDocs: any[] = [];
+
+      for (const student of studentsRes.data) {
+        const docsRes = await api.get(
+          `/advisor/students/${student.user_id}/documents`
+        );
+
+        const pending = docsRes.data.filter(
+          (doc: any) => doc.status === "PENDING"
+        );
+
+        const docsWithStudent = pending.map((doc: any) => ({
+          ...doc,
+          fname: student.fname,
+          lname: student.lname
+        }));
+
+        allDocs.push(...docsWithStudent);
+      }
+
+      setPendingDocs(allDocs);
+      setActiveTab("advisor");
+    } catch (err) {
+      console.error("Failed to load pending docs", err);
+    }
+  };
+
+  /* ================= SIDEBAR ================= */
 
   const sidebarItems = [
-    { id: 'classes', label: 'My Classes' },
-    { id: 'students', label: 'Student Progress' },
-    { id: 'reports', label: 'Reports' },
+    { id: "classes", label: "My Classes" },
+    { id: "students", label: "Student Progress" },
+    ...(isAdvisor ? [{ id: "advisor", label: "Advisor Panel" }] : [])
   ];
 
-  const classes = [
-    { id: 'cs101', name: 'Intro to CS', students: 50, schedule: 'Mon/Wed 10:00 AM' },
-    { id: 'cs202', name: 'Data Structures', students: 45, schedule: 'Tue/Thu 2:00 PM' },
-    { id: 'cs305', name: 'Algorithms', students: 30, schedule: 'Fri 10:00 AM' },
-  ];
+  /* ================= LOADING ================= */
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", padding: "4rem" }}>
+        Loading dashboard...
+      </div>
+    );
+  }
+
+  /* ================= RENDER ================= */
 
   return (
     <DashboardLayout
@@ -27,49 +135,113 @@ export default function FacultyDashboard({ user }: { user: any }) {
     >
       <header className="page-header">
         <h1 className="page-title">Faculty Dashboard</h1>
-        <p className="page-subtitle">Manage your classes and students</p>
+        <p className="page-subtitle">
+          Manage courses, students and advisor responsibilities
+        </p>
       </header>
 
-      {activeTab === 'classes' && (
+      {activeTab === "classes" && (
         <section className="content-card">
           <div className="table-responsive">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Class Name</th>
-                  <th>Students Enrolled</th>
-                  <th>Schedule</th>
+                  <th>Course Name</th>
+                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {classes.map(cls => (
-                  <tr key={cls.id}>
-                    <td>
-                      <div className="user-details">
-                        <span className="user-email-text">{cls.name}</span>
-                        <span className="user-id-text">Code: {cls.id.toUpperCase()}</span>
-                      </div>
-                    </td>
-                    <td>{cls.students}</td>
-                    <td>{cls.schedule}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button className="btn btn-secondary">View Students</button>
-                        <button className="btn btn-secondary">Attendance</button>
-                      </div>
-                    </td>
+                {courses.length === 0 ? (
+                  <tr>
+                    <td colSpan={3}>No courses found.</td>
                   </tr>
-                ))}
+                ) : (
+                  courses.map((course) => (
+                    <tr key={course.course_id}>
+                      <td>{course.name}</td>
+                      <td>{course.availability ? "Open" : "Closed"}</td>
+                      <td>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={() => loadStudents(course.course_id)}
+                        >
+                          View Students
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </section>
       )}
 
-      {activeTab !== 'classes' && (
+      {activeTab === "students" && (
         <section className="content-card">
-          <p className="loading-text">Module under development.</p>
+          <h2>Enrolled Students</h2>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Department</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.length === 0 ? (
+                <tr>
+                  <td colSpan={2}>No students found.</td>
+                </tr>
+              ) : (
+                students.map((student) => (
+                  <tr key={student.user_id}>
+                    <td>{student.fname} {student.lname}</td>
+                    <td>{student.department}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {activeTab === "advisor" && isAdvisor && (
+        <section className="content-card">
+          <h2>Pending Document Verifications</h2>
+
+          <button
+            className="btn btn-primary"
+            onClick={loadPendingDocuments}
+            style={{ marginBottom: "15px" }}
+          >
+            Refresh
+          </button>
+
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Document Type</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingDocs.length === 0 ? (
+                <tr>
+                  <td colSpan={3}>No pending documents.</td>
+                </tr>
+              ) : (
+                pendingDocs.map((doc) => (
+                  <tr key={doc.document_id}>
+                    <td>{doc.fname} {doc.lname}</td>
+                    <td>{doc.document_type}</td>
+                    <td>{doc.status}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </section>
       )}
     </DashboardLayout>
