@@ -14,7 +14,7 @@ interface Material {
   material_id: number;
   course_id: number;
   title: string;
-  drive_link: string;
+  file_url: string;
 }
 
 interface Doubt {
@@ -71,7 +71,7 @@ export default function FacultyDashboard({
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [courseFormData, setCourseFormData] = useState({ name: "", description: "" });
   const [showMaterialForm, setShowMaterialForm] = useState(false);
-  const [materialFormData, setMaterialFormData] = useState({ title: "", drive_link: "" });
+  const [materialFormData, setMaterialFormData] = useState({ title: "", file_url: "" });
   const [showAssessmentForm, setShowAssessmentForm] = useState(false);
   const [assessmentFormData, setAssessmentFormData] = useState({ title: "", description: "", deadline: "" });
   const [responseFormData, setResponseFormData] = useState({ doubt_id: 0, response: "" });
@@ -458,7 +458,7 @@ useEffect(() => {
               <form onSubmit={handleUploadMaterial} className="content-card" style={{ marginBottom: "1rem" }}>
                 <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
                   <input className="form-input" placeholder="Title" required value={materialFormData.title} onChange={e => setMaterialFormData({...materialFormData, title: e.target.value})} />
-                  <input className="form-input" placeholder="Drive Link" required value={materialFormData.drive_link} onChange={e => setMaterialFormData({...materialFormData, drive_link: e.target.value})} />
+                  <input className="form-input" placeholder="Drive Link" required value={materialFormData.file_url} onChange={e => setMaterialFormData({...materialFormData, file_url: e.target.value})} />
                 </div>
                 <div className="action-buttons">
                   <button type="submit" className="btn btn-primary">Upload</button>
