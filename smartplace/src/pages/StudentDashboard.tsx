@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import axios from "axios";
 import DashboardLayout from "../components/layout/DashboardLayout";
+import Onboarding from "./Onboarding";
 import "../styles/Dashboard.css";
 
 export default function StudentDashboard({
@@ -14,6 +15,10 @@ export default function StudentDashboard({
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const needsOnboarding = useMemo(() => {
+    return data && data.user_id === null;
+  }, [data]);
 
   // Stats for the home overview (using actual data where possible)
   const stats = [
@@ -246,7 +251,7 @@ export default function StudentDashboard({
           </div>
           <div className="detail-group">
             <label>Advisor</label>
-            <p>{data?.advisor_id ? `Advisor ID: ${data.advisor_id}` : "Pending Assignment"}</p>
+            <p>{data?.advisor_fname ? `${data.advisor_fname} ${data.advisor_lname}` : "Pending Assignment"}</p>
           </div>
         </div>
       )}
@@ -340,27 +345,69 @@ export default function StudentDashboard({
 
   const renderSlots = () => (
     <section className="content-card">
-      <h3>Placement Slots Booking</h3>
-      <p className="page-subtitle">Select and book your interview/test slots</p>
+      <div className="tab-header" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center' }}>
+        <h3>Available Placement Drives</h3>
+        <div className="tab-actions">
+           <button className="btn btn-primary" onClick={() => fetchData(api.get("/slots/available"))}>Refresh Available</button>
+           <button className="btn btn-secondary" onClick={() => fetchData(api.get("/slots/my"))}>My Registrations</button>
+        </div>
+      </div>
       
-      <div className="action-row">
-        <button className="btn btn-primary" onClick={() => fetchData(api.get("/slots/available"))}>
-          Refresh Available Slots
-        </button>
-      </div>
+      <p className="page-subtitle">Select and apply for upcoming company recruitment drives</p>
 
-      <div className="slot-grid">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="slot-card">
-            <div className="slot-time">10:00 AM - 11:00 AM</div>
-            <div className="slot-date">March 12, 2024</div>
-            <button className="btn btn-secondary" onClick={() => fetchData(api.post("/slots/book", { driveId: i }))}>
-              Book Slot {i}
-            </button>
-          </div>
-        ))}
+      <div className="table-responsive">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Mode</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!data || !Array.isArray(data) || data.length === 0 ? (
+              <tr><td colSpan={6} style={{textAlign:'center', padding:'2rem'}}>No drives found for this category</td></tr>
+            ) : (
+              data.map((drive: any) => (
+                <tr key={drive.drive_id}>
+                  <td><strong>{drive.company_name || 'TBA'}</strong></td>
+                  <td>{new Date(drive.drive_date).toLocaleDateString()}</td>
+                  <td>{drive.drive_type?.toUpperCase()}</td>
+                  <td>{drive.mode?.toUpperCase()}</td>
+                  <td>
+                    <span className={`status-badge ${drive.status || 'registered'}`}>
+                      {drive.status || 'Available'}
+                    </span>
+                  </td>
+                  <td>
+                    {activeTab === 'slots' && !drive.registration_id ? (
+                      <button 
+                        className="btn btn-primary btn-sm" 
+                        onClick={async () => {
+                          try {
+                            await api.post("/slots/book", { driveId: drive.drive_id });
+                            alert("Successfully applied for the drive!");
+                            fetchData(api.get("/slots/available"));
+                          } catch (err) {
+                            alert("Failed to apply");
+                          }
+                        }}
+                      >
+                        Apply Now
+                      </button>
+                    ) : (
+                      <button className="btn btn-secondary btn-sm" disabled>Applied</button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
-      {data && <pre className="debug-data">{JSON.stringify(data, null, 2)}</pre>}
     </section>
   );
 
@@ -456,6 +503,15 @@ export default function StudentDashboard({
           </div>
         </div>
       </header>
+
+      {needsOnboarding && (
+        <Onboarding 
+          user={user} 
+          role="student" 
+          accessToken={accessToken} 
+          onComplete={() => fetchData(api.get("/profile"))} 
+        />
+      )}
 
       {loading && <div className="loading-spinner">Loading...</div>}
       {error && <div className="error-banner">{error}</div>}

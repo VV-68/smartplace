@@ -48,6 +48,16 @@ interface UserRecord {
   created_at: string;
 }
 
+interface PlacementDrive {
+  drive_id: number;
+  company_id: string;
+  company_name: string;
+  drive_date: string;
+  drive_type: string;
+  mode: string;
+  status: string;
+}
+
 export default function AdminDashboard({ user, accessToken }: { user: any; accessToken: string }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -58,6 +68,7 @@ export default function AdminDashboard({ user, accessToken }: { user: any; acces
   const [facultyList, setFacultyList] = useState<Faculty[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [allUsers, setAllUsers] = useState<UserRecord[]>([]);
+  const [pendingDrives, setPendingDrives] = useState<PlacementDrive[]>([]);
 
   // Modal/Form State
   const [showAdvisorModal, setShowAdvisorModal] = useState(false);
@@ -89,6 +100,9 @@ export default function AdminDashboard({ user, accessToken }: { user: any; acces
       } else if (tab === 'users') {
         const res = await api.get('/admin/users');
         setAllUsers(res.data);
+      } else if (tab === 'drives') {
+        const res = await api.get('/admin/drives/pending');
+        setPendingDrives(res.data);
       }
     } catch (err) {
       console.error(`Error fetching ${tab}:`, err);
@@ -127,9 +141,20 @@ export default function AdminDashboard({ user, accessToken }: { user: any; acces
     }
   };
 
+  const handleDriveStatus = async (driveId: number, status: string) => {
+    try {
+      await api.patch(`/admin/drives/${driveId}/status`, { status });
+      setPendingDrives(prev => prev.filter(d => d.drive_id !== driveId));
+      alert(`Drive ${status.toLowerCase()}ed successfully`);
+    } catch (err) {
+      alert('Status update failed');
+    }
+  };
+
   const sidebarItems = [
     { id: 'overview', label: 'Overview' },
     { id: 'students', label: 'Pending Students' },
+    { id: 'drives', label: 'Drive Requests' },
     { id: 'faculty', label: 'Faculty List' },
     { id: 'courses', label: 'All Courses' },
     { id: 'users', label: 'User Directory' },
@@ -282,6 +307,7 @@ export default function AdminDashboard({ user, accessToken }: { user: any; acces
         <div className="table-header-area">
           <h2 style={{ margin: 0, fontSize: '1.25rem' }}>
             {activeTab === 'students' ? 'Verification Queue' : 
+             activeTab === 'drives' ? 'Placement Drive Requests' :
              activeTab === 'faculty' ? 'Faculty Directory' :
              activeTab === 'courses' ? 'Academic Courses' :
              activeTab === 'users' ? 'User Directory' : 'System Activity'}
@@ -324,6 +350,40 @@ export default function AdminDashboard({ user, accessToken }: { user: any; acces
                       <td className="action-buttons">
                         <button className="btn btn-primary" onClick={() => handleVerifyStudent(s.user_id)}>Verify</button>
                         <button className="btn btn-secondary" onClick={() => { setSelectedStudentId(s.user_id); setShowAdvisorModal(true); }}>Advisor</button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+
+          {activeTab === 'drives' && (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Date</th>
+                  <th>Type / Mode</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingDrives.length === 0 ? <tr><td colSpan={4} style={{textAlign:'center', padding: '3rem'}}>No pending drive requests</td></tr> : 
+                  pendingDrives.map(d => (
+                    <tr key={d.drive_id}>
+                      <td>
+                        <strong>{d.company_name || 'Unknown Company'}</strong>
+                      </td>
+                      <td>{new Date(d.drive_date).toLocaleDateString()}</td>
+                      <td>
+                        <span className="badge-pill" style={{background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6'}}>
+                          {d.drive_type.toUpperCase()}
+                        </span>
+                        <div className="user-id-text" style={{marginTop: '4px'}}>{d.mode.toUpperCase()}</div>
+                      </td>
+                      <td className="action-buttons">
+                        <button className="btn btn-primary" onClick={() => handleDriveStatus(d.drive_id, 'APPROVED')}>Approve</button>
+                        <button className="btn btn-danger" onClick={() => handleDriveStatus(d.drive_id, 'REJECTED')}>Reject</button>
                       </td>
                     </tr>
                   ))}

@@ -7,6 +7,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import FacultyDashboard from "./pages/FacultyDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AlumniDashboard from "./pages/AlumniDashboard";
+import CompanyDashboard from "./pages/CompanyDashboard";
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -164,6 +165,7 @@ function App() {
       case "faculty": return <FacultyDashboard user={session.user} accessToken={session.access_token} />;
       case "alumni": return <AlumniDashboard user={session.user} accessToken={session.access_token} />;
       case "admin": return <AdminDashboard user={session.user} accessToken={session.access_token} />;
+      case "company": return <CompanyDashboard user={session.user} accessToken={session.access_token} />;
       default: return null;
     }
   };
