@@ -90,3 +90,21 @@ exports.updateDriveStatus = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getAllDrives = async (req, res, next) => {
+  try {
+    const drives = await adminService.getAllDrives();
+    res.json(drives);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getDriveRegistrants = async (req, res, next) => {
+  try {
+    const registrants = await adminService.getDriveRegistrants(req.params.driveId);
+    res.json(registrants);
+  } catch (err) {
+    next(err);
+  }
+};
