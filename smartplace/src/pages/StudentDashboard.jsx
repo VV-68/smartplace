@@ -176,7 +176,7 @@ export default function StudentDashboard({
       <div className="profile-header">
         <div className="user-avatar-large">{user.email?.charAt(0).toUpperCase()}</div>
         <div className="profile-info">
-          <h2>{user.user_metadata?.full_name || "Student Name"}</h2>
+          <h2>{profile ? `${profile.fname} ${profile.lname || ""}` : "Student Name"}</h2>
           <p>{user.email}</p>
           <span className={`status-badge ${profile?.is_verified ? 'verified' : 'pending'}`}>
             {profile?.is_verified ? 'Verified Student' : 'Verification Pending'}
@@ -244,26 +244,46 @@ export default function StudentDashboard({
         </form>
       ) : (
         <div className="profile-details-grid">
-          <div className="detail-group">
-            <label>Department</label>
-            <p>{profile?.department || "Not Specified"}</p>
-          </div>
-          <div className="detail-group">
-            <label>Batch</label>
-            <p>{profile?.graduation_year || "Not Specified"}</p>
-          </div>
-          <div className="detail-group">
-            <label>Current CGPA</label>
-            <p>{profile?.cgpa || "Not Specified"}</p>
-          </div>
-          <div className="detail-group">
-            <label>Advisor</label>
-            <p>{profile?.advisor_fname ? `${profile.advisor_fname} ${profile.advisor_lname}` : "Pending Assignment"}</p>
-          </div>
-        </div>
+
+              <div className="detail-group">
+                <label>Department</label>
+                <p>{profile?.department || "Not Specified"}</p>
+              </div>
+
+              <div className="detail-group">
+                <label>Batch</label>
+                <p>{profile?.graduation_year || "Not Specified"}</p>
+              </div>
+
+              <div className="detail-group">
+                <label>Current CGPA</label>
+                <p>{profile?.cgpa || "Not Specified"}</p>
+              </div>
+
+              <div className="detail-group">
+                <label>Email</label>
+                <p>{profile?.email}</p>
+              </div>
+
+              <div className="detail-group">
+                <label>Placement Eligibility</label>
+                <p>{profile?.placement_eligible ? "Eligible" : "Not Eligible"}</p>
+              </div>
+
+              <div className="detail-group">
+                <label>Verification Status</label>
+                <p>{profile?.is_verified ? "Verified" : "Pending Verification"}</p>
+              </div>
+
+              <div className="detail-group">
+                <label>Advisor</label>
+                <p>{profile?.advisor_fname ? `${profile.advisor_fname} ${profile.advisor_lname}` : "Pending Assignment"}</p>
+              </div>
+
+</div>
       )}
 
-      {profile && <pre className="debug-data">{JSON.stringify(profile, null, 2)}</pre>}
+      {/* {profile && <pre className="debug-data">{JSON.stringify(profile, null, 2)}</pre>} */}
     </section>
   );
 
