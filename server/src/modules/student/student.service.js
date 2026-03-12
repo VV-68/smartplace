@@ -53,8 +53,8 @@ async function getEnrolledCourses(userId) {
     `SELECT e.course_id,
             c.name,
             c.faculty_id,
-            u.fname,
-            u.lname
+            u.fname AS faculty_fname,
+            u.lname AS faculty_lname
      FROM enrollments e
      JOIN courses c ON e.course_id = c.course_id
      JOIN users u ON c.faculty_id = u.user_id
@@ -66,9 +66,10 @@ async function getEnrolledCourses(userId) {
 
 async function getAvailableCourses() {
   const result = await pool.query(
-    `SELECT course_id, name
-     FROM courses
-     WHERE availability = true`
+    `SELECT c.course_id, c.name, u.fname AS faculty_fname, u.lname AS faculty_lname
+     FROM courses c
+     JOIN users u ON u.user_id = c.faculty_id
+     WHERE c.availability = true`
   );
   return result.rows;
 }
@@ -77,6 +78,7 @@ async function enrollInCourse(userId, courseId) {
   const result = await pool.query(
     `INSERT INTO enrollments (student_id, course_id)
      VALUES ($1, $2)
+     ON CONFLICT DO NOTHING
      RETURNING *`,
     [userId, courseId]
   );
@@ -107,6 +109,16 @@ async function getFacultyContacts(courseId) {
     [courseId]
   );
   return result.rows[0];
+}
+
+async function getCourseMaterials(courseId) {
+  const result = await pool.query(
+    `SELECT material_id, title, file_url
+     FROM course_materials
+     WHERE course_id = $1`,
+    [courseId]
+  );
+  return result.rows;
 }
 
 /* =========================
@@ -352,6 +364,7 @@ module.exports = {
   enrollInCourse,
   getCourseDetails,
   getFacultyContacts,
+  getCourseMaterials,
   getUpcomingAssessments,
   getAssessmentDetails,
   startAssessment,

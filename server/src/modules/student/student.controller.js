@@ -58,7 +58,7 @@ async function getAvailableCourses(req, res) {
 
 async function enrollInCourse(req, res) {
   try {
-    const { courseId } = req.body;
+    const { courseId } = req.params;
     const data = await studentService.enrollInCourse(
       req.user.id,
       courseId
@@ -83,6 +83,16 @@ async function getFacultyContacts(req, res) {
   try {
     const { courseId } = req.params;
     const data = await studentService.getFacultyContacts(courseId);
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+async function getCourseMaterials(req, res) {
+  try {
+    const { courseId } = req.params;
+    const data = await studentService.getCourseMaterials(courseId);
     res.status(200).json(data);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -284,6 +294,7 @@ module.exports = {
   enrollInCourse,
   getCourseDetails,
   getFacultyContacts,
+  getCourseMaterials,
   getUpcomingAssessments,
   getAssessmentDetails,
   startAssessment,

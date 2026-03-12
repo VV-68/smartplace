@@ -47,9 +47,15 @@ router.get(
 );
 
 router.post(
-  "/courses/enroll",
+  "/courses/enroll/:courseId",
   authMiddleware,
   studentController.enrollInCourse
+);
+
+router.get(
+  "/courses/:courseId/materials",
+  authMiddleware,
+  studentController.getCourseMaterials
 );
 
 router.get(
