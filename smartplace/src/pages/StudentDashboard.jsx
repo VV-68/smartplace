@@ -18,6 +18,8 @@ export default function StudentDashboard({
   const [assessments, setAssessments] = useState([]);
   const [slots, setSlots] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [eligibleDrives, setEligibleDrives] = useState([]);
+  const [driveEligibilityList, setDriveEligibilityList] = useState([]);
 
   const [courseTab, setCourseTab] = useState("enrolled");
   const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
@@ -75,6 +77,12 @@ export default function StudentDashboard({
       } else if (tab === "slots") {
         const res = await api.get("/slots/available");
         setSlots(res.data);
+      } else if (tab === "eligible-drives") {
+        const res = await api.get("/eligible-drives");
+        setEligibleDrives(res.data);
+      } else if (tab === "drive-eligibility") {
+        const res = await api.get("/drive-eligibility");
+        setDriveEligibilityList(res.data);
       } else if (tab === "offers") {
         const res = await api.get("/offers/eligible");
         setOffers(res.data);
@@ -92,6 +100,8 @@ export default function StudentDashboard({
     { id: "courses", label: "Courses" },
     { id: "assessments", label: "Assessments" },
     { id: "slots", label: "Placement Slots" },
+    { id: "eligible-drives", label: "Eligible Drives" },
+    { id: "drive-eligibility", label: "Drive Eligibility" },
     { id: "offers", label: "Job Offers" },
     { id: "documents", label: "Documents" }
   ];
@@ -463,7 +473,7 @@ export default function StudentDashboard({
                             alert("Successfully applied for the drive!");
                             fetchData("slots");
                           } catch (err) {
-                            alert("Failed to apply");
+                            alert(`Eligibility not met: ${err.response?.data?.error || 'Failed to apply'}`);
                           }
                         }}
                       >
@@ -478,6 +488,100 @@ export default function StudentDashboard({
             )}
           </tbody>
         </table>
+      </div>
+    </section>
+  );
+
+  const renderEligibleDrives = () => (
+    <section className="content-card">
+      <div className="tab-header" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center' }}>
+        <h3>Eligible Placement Drives</h3>
+        <button className="btn btn-primary" onClick={() => fetchData("eligible-drives")}>Refresh</button>
+      </div>
+      <p className="page-subtitle">Drives you are eligible for</p>
+      
+      <div className="table-responsive">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Role</th>
+              <th>Package</th>
+              <th>Date</th>
+              <th>Eligibility</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {eligibleDrives.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>No eligible drives found</td></tr>
+            ) : (
+              eligibleDrives.map((drive) => (
+                <tr key={drive.drive_id}>
+                  <td><strong>{drive.company_name || 'TBA'}</strong></td>
+                  <td>{drive.role?.toUpperCase()}</td>
+                  <td>{drive.package_lpa === "TBD" ? "TBD" : drive.package_lpa + " LPA"}</td>
+                  <td>{new Date(drive.drive_date).toLocaleDateString()}</td>
+                  <td><span className="status-badge success">✔ You are eligible</span></td>
+                  <td>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={async () => {
+                        try {
+                          await api.post("/slots/book", { driveId: drive.drive_id });
+                          alert("Successfully applied for the drive!");
+                          fetchData("eligible-drives");
+                        } catch (err) {
+                          alert(`Eligibility not met: ${err.response?.data?.error || 'Failed to apply'}`);
+                        }
+                      }}
+                    >
+                      Apply Now
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+
+  const renderDriveEligibility = () => (
+    <section className="content-card">
+      <div className="tab-header" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center' }}>
+        <h3>Drive Eligibility Status</h3>
+        <button className="btn btn-primary" onClick={() => fetchData("drive-eligibility")}>Refresh</button>
+      </div>
+      <p className="page-subtitle">Understand why you are eligible or not eligible for upcoming drives.</p>
+
+      <div className="list-container" style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
+        {driveEligibilityList.length === 0 ? (
+           <p style={{ padding: '2rem', textAlign: 'center' }}>No drives available</p>
+        ) : (
+          driveEligibilityList.map((drive) => (
+            <div key={drive.drive_id} className="stat-card" style={{ flex: '1', border: '1px solid #eee', padding: '1rem', borderRadius: '8px', background: 'var(--bg-secondary)' }}>
+               <div style={{ marginBottom: '8px', fontSize: '1.1rem' }}>
+                 <strong>Drive: </strong> {drive.title}
+               </div>
+               <div style={{ marginBottom: '8px' }}>
+                 <strong>Eligibility: </strong> 
+                 {drive.eligible ? (
+                   <span style={{ color: '#16a34a', fontWeight: 'bold' }}>Eligible</span>
+                 ) : (
+                   <span style={{ color: '#dc2626', fontWeight: 'bold' }}>Not Eligible</span>
+                 )}
+               </div>
+               {!drive.eligible && (
+                 <div>
+                   <strong>Reason: </strong> 
+                   <span style={{ color: '#dc2626' }}>✖ Not eligible — {drive.reason}</span>
+                 </div>
+               )}
+            </div>
+          ))
+        )}
       </div>
     </section>
   );
@@ -682,6 +786,8 @@ export default function StudentDashboard({
         {activeTab === "courses" && renderCourses()}
         {activeTab === "assessments" && renderAssessments()}
         {activeTab === "slots" && renderSlots()}
+        {activeTab === "eligible-drives" && renderEligibleDrives()}
+        {activeTab === "drive-eligibility" && renderDriveEligibility()}
         {activeTab === "offers" && renderOffers()}
         {activeTab === "documents" && renderDocuments()}
       </div>

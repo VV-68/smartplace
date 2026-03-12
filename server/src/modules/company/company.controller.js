@@ -35,6 +35,15 @@ async function requestDrive(req, res) {
   }
 }
 
+async function getFormOptions(req, res) {
+  try {
+    const data = await companyService.getFormOptions();
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
 async function getMyDrives(req, res) {
   try {
     const data = await companyService.getMyDrives(req.user.id);
@@ -95,6 +104,7 @@ module.exports = {
   getProfile,
   updateProfile,
   requestDrive,
+  getFormOptions,
   getMyDrives,
   createOffer,
   getMyOffers,

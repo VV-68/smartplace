@@ -15,6 +15,7 @@ export default function CompanyDashboard({ user, accessToken }) {
   const [offers, setOffers] = useState([]);
   const [selectedDriveId, setSelectedDriveId] = useState(null);
   const [applicants, setApplicants] = useState([]);
+  const [formOptions, setFormOptions] = useState({ departments: [], graduation_years: [] });
 
   const needsOnboarding = useMemo(() => {
     return profile && profile.user_id === null;
@@ -37,6 +38,8 @@ export default function CompanyDashboard({ user, accessToken }) {
       } else if (tab === 'drives') {
         const res = await api.get('/company/drives/my');
         setDrives(res.data);
+        const optRes = await api.get('/company/drives/form-options');
+        setFormOptions(optRes.data);
       } else if (tab === 'offers') {
         const res = await api.get('/company/offers/my');
         setOffers(res.data);
@@ -98,7 +101,11 @@ export default function CompanyDashboard({ user, accessToken }) {
     mode: 'online',
     drive_type: 'technical',
     location: '',
-    meeting_link: ''
+    meeting_link: '',
+    min_cgpa: '',
+    registration_deadline: '',
+    eligible_departments: [],
+    graduation_year: ''
   });
 
   /* OFFER POSTING */
@@ -407,6 +414,39 @@ export default function CompanyDashboard({ user, accessToken }) {
               <div className="form-group">
                 <label>Location / Meeting Link</label>
                 <input type="text" className="form-input" placeholder="Room 302 or Zoom link" value={driveForm.location} onChange={e => setDriveForm({...driveForm, location: e.target.value})} />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className="form-group flex-1">
+                  <label>Min CGPA (0-10)</label>
+                  <input type="number" step="0.1" min="0" max="10" className="form-input" value={driveForm.min_cgpa} onChange={e => setDriveForm({...driveForm, min_cgpa: e.target.value})} />
+                </div>
+                <div className="form-group flex-1">
+                  <label>Registration Deadline</label>
+                  <input type="datetime-local" className="form-input" value={driveForm.registration_deadline} onChange={e => setDriveForm({...driveForm, registration_deadline: e.target.value})} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className="form-group flex-1">
+                  <label>Eligible Departments</label>
+                  <select multiple className="form-input" value={driveForm.eligible_departments} onChange={e => {
+                    const options = Array.from(e.target.selectedOptions);
+                    setDriveForm({...driveForm, eligible_departments: options.map(o => o.value)});
+                  }} style={{ height: '80px' }}>
+                    {formOptions.departments.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                  <small style={{color: '#666', fontSize: '0.8rem'}}>Hold Ctrl/Cmd to select multiple</small>
+                </div>
+                <div className="form-group flex-1">
+                  <label>Graduation Year</label>
+                  <select className="form-input" value={driveForm.graduation_year} onChange={e => setDriveForm({...driveForm, graduation_year: e.target.value})}>
+                    <option value="">Any</option>
+                    {formOptions.graduation_years.map(yr => (
+                      <option key={yr} value={yr}>{yr}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="action-row" style={{ marginTop: '1rem' }}>
                 <button type="submit" className="btn btn-primary">Submit Request</button>

@@ -115,6 +115,18 @@ router.post(
 ========================= */
 
 router.get(
+  "/eligible-drives",
+  authMiddleware,
+  studentController.getEligibleDrives
+);
+
+router.get(
+  "/drive-eligibility",
+  authMiddleware,
+  studentController.getDriveEligibility
+);
+
+router.get(
   "/slots/available",
   authMiddleware,
   studentController.getAvailableSlots

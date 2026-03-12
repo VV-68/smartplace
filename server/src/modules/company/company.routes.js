@@ -9,6 +9,7 @@ router.get("/profile", authMiddleware, roleMiddleware("company"), companyControl
 router.put("/profile", authMiddleware, roleMiddleware("company"), companyController.updateProfile);
 
 // Drives
+router.get("/drives/form-options", authMiddleware, roleMiddleware("company"), companyController.getFormOptions);
 router.post("/drives/request", authMiddleware, roleMiddleware("company"), companyController.requestDrive);
 router.get("/drives/my", authMiddleware, roleMiddleware("company"), companyController.getMyDrives);
 
