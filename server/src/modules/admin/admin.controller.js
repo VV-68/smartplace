@@ -20,6 +20,24 @@ exports.getPendingStudents = async (req, res, next) => {
   }
 };
 
+exports.getFilteredStudents = async (req, res, next) => {
+  try {
+    const students = await adminService.getFilteredStudents(req.query);
+    res.json({ students });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getDepartments = async (req, res) => {
+  try {
+    const departments = await adminService.getDepartments();
+    res.json(departments);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch departments" });
+  }
+};
+
 exports.verifyStudent = async (req, res, next) => {
   try {
     const student = await adminService.verifyStudent(req.params.id);
