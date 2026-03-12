@@ -20,6 +20,16 @@ exports.getPendingStudents = async (req, res, next) => {
   }
 };
 
+exports.getFilteredStudents = async (req, res, next) => {
+  try {
+    const students = await adminService.getFilteredStudents(req.query);
+    res.json({ students });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 exports.verifyStudent = async (req, res, next) => {
   try {
     const student = await adminService.verifyStudent(req.params.id);

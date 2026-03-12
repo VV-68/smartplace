@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import '../styles/Dashboard.css';
 import DashboardLayout from '../components/layout/DashboardLayout';
-
+ 
 export default function AdminDashboard({ user, accessToken }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -24,6 +24,14 @@ export default function AdminDashboard({ user, accessToken }) {
   const [showAdvisorModal, setShowAdvisorModal] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [selectedAdvisorId, setSelectedAdvisorId] = useState('');
+
+  // Filter State
+  const [selectedDepartments, setSelectedDepartments] = useState([]);
+  const [minCgpa, setMinCgpa] = useState('');
+  const [maxCgpa, setMaxCgpa] = useState('');
+  const [placementEligible, setPlacementEligible] = useState('All');
+  const [filteredStudents, setFilteredStudents] = useState([]);
+
 
   const api = useMemo(() => {
     return axios.create({
@@ -120,6 +128,47 @@ export default function AdminDashboard({ user, accessToken }) {
     }
   };
 
+  const fetchFilteredStudents = async () => {
+    try {
+      setLoading(true);
+      let eligibleParam = undefined;
+      if (placementEligible === 'Eligible') eligibleParam = 'true';
+      if (placementEligible === 'Not Eligible') eligibleParam = 'false';
+
+      const res = await api.get("/admin/students", {
+        params: {
+          departments: selectedDepartments.length > 0 ? selectedDepartments.join(",") : undefined,
+          min_cgpa: minCgpa || undefined,
+          max_cgpa: maxCgpa || undefined,
+          placement_eligible: eligibleParam
+        }
+      });
+      setFilteredStudents(res.data.students);
+    } catch (error) {
+      alert("Error fetching filtered students");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadFilteredPDF = () => {
+    if (filteredStudents.length === 0) return;
+    const doc = new jsPDF();
+    doc.text("Filtered Student List", 14, 15);
+    autoTable(doc, {
+      startY: 20,
+      head: [["Name", "Email", "Department", "CGPA", "Placement"]],
+      body: filteredStudents.map(s => [
+        `${s.fname} ${s.lname || ''}`.trim(),
+        s.email,
+        s.department,
+        s.cgpa,
+        s.placement_eligible ? "Yes" : "No"
+      ])
+    });
+    doc.save("filtered_students.pdf");
+  };
+
   const handleDownloadPDF = () => {
     if (!selectedDrive || registrants.length === 0) return;
 
@@ -173,6 +222,7 @@ export default function AdminDashboard({ user, accessToken }) {
   const sidebarItems = [
     { id: 'overview', label: 'Overview' },
     { id: 'students', label: 'Pending Students' },
+    { id: 'filter-students', label: 'Student Filter' },
     { id: 'drives', label: 'Drive Requests' },
     { id: 'all-drives', label: 'All Drives' },
     { id: 'faculty', label: 'Faculty List' },
@@ -327,6 +377,7 @@ export default function AdminDashboard({ user, accessToken }) {
         <div className="table-header-area">
           <h2 style={{ margin: 0, fontSize: '1.25rem' }}>
             {activeTab === 'students' ? 'Verification Queue' : 
+             activeTab === 'filter-students' ? 'Student Filter' : 
              activeTab === 'drives' ? 'Placement Drive Requests' :
              activeTab === 'all-drives' ? 'All Placement Drives' :
              activeTab === 'faculty' ? 'Faculty Directory' :
@@ -658,6 +709,117 @@ export default function AdminDashboard({ user, accessToken }) {
             </table>
           )}
           
+          {activeTab === 'filter-students' && (
+            <div style={{ padding: '1.5rem' }}>
+              
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{ marginBottom: '0.75rem', marginTop: 0 }}>Department</h4>
+                {['CSE', 'ECE', 'ME', 'IT', 'AI', 'CV'].map(dept => (
+                  <label key={dept} style={{ marginRight: '1.25rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <input 
+                      type="checkbox" 
+                      value={dept} 
+                      checked={selectedDepartments.includes(dept)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedDepartments([...selectedDepartments, dept]);
+                        } else {
+                          setSelectedDepartments(selectedDepartments.filter(d => d !== dept));
+                        }
+                      }} 
+                    /> {dept}
+                  </label>
+                ))}
+              </div>
+
+              <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                <div>
+                  <h4 style={{ marginBottom: '0.75rem', marginTop: 0 }}>Min CGPA</h4>
+                  <input 
+                    type="number" 
+                    className="form-input"
+                    placeholder="e.g. 7.0" 
+                    value={minCgpa} 
+                    onChange={(e) => setMinCgpa(e.target.value)} 
+                    style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)', width: '150px' }}
+                  />
+                </div>
+                <div>
+                  <h4 style={{ marginBottom: '0.75rem', marginTop: 0 }}>Max CGPA</h4>
+                  <input 
+                    type="number" 
+                    className="form-input"
+                    placeholder="e.g. 10.0" 
+                    value={maxCgpa} 
+                    onChange={(e) => setMaxCgpa(e.target.value)} 
+                    style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)', width: '150px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '2rem' }}>
+                <h4 style={{ marginBottom: '0.75rem', marginTop: 0 }}>Placement Eligibility</h4>
+                <select 
+                  className="form-input"
+                  value={placementEligible} 
+                  onChange={(e) => setPlacementEligible(e.target.value)}
+                  style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)', minWidth: '200px' }}
+                >
+                  <option value="All">All</option>
+                  <option value="Eligible">Eligible</option>
+                  <option value="Not Eligible">Not Eligible</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+                <button className="btn btn-primary" onClick={fetchFilteredStudents}>
+                  Apply Filter
+                </button>
+                <button className="btn btn-secondary" onClick={handleDownloadFilteredPDF} disabled={filteredStudents.length === 0}>
+                  Download PDF
+                </button>
+              </div>
+
+              {filteredStudents.length > 0 && (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Department</th>
+                      <th>CGPA</th>
+                      <th>Placement Eligible</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map((s, index) => (
+                      <tr key={index}>
+                        <td>
+                          <strong>{`${s.fname} ${s.lname || ''}`.trim()}</strong>
+                        </td>
+                        <td><span className="user-id-text">{s.email}</span></td>
+                        <td>
+                          <span className="badge-pill" style={{background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6'}}>
+                            {s.department}
+                          </span>
+                        </td>
+                        <td><span style={{fontWeight: 600}}>GPA: {s.cgpa}</span></td>
+                        <td>
+                          <span className={`badge-pill`} style={{
+                            background: s.placement_eligible ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            color: s.placement_eligible ? '#10b981' : '#ef4444'
+                          }}>
+                            {s.placement_eligible ? "YES" : "NO"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
           {activeTab === 'overview' && (
              <div style={{padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)'}}>
                Select a category from the sidebar to manage specific system entities.
