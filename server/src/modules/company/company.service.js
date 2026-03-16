@@ -104,17 +104,25 @@ async function deleteDrive(companyId, driveId) {
     throw new Error("Invalid drive ID or unauthorized");
   }
 
-  // Check registrations
-  const regCheck = await pool.query(
-    `SELECT COUNT(*) FROM drive_registrations WHERE drive_id = $1`,
+  // Delete all offer applications for offers tied to this drive
+  await pool.query(
+    `DELETE FROM offer_applications WHERE offer_id IN (SELECT offer_id FROM placement_offers WHERE drive_id = $1)`,
     [driveId]
   );
 
-  if (parseInt(regCheck.rows[0].count) > 0) {
-    throw new Error("Cannot delete drive. Students have already registered.");
-  }
+  // Delete all placement offers tied to this drive
+  await pool.query(
+    `DELETE FROM placement_offers WHERE drive_id = $1`,
+    [driveId]
+  );
 
-  // Delete
+  // Delete all registrations for this drive
+  await pool.query(
+    `DELETE FROM drive_registrations WHERE drive_id = $1`,
+    [driveId]
+  );
+
+  // Delete the drive itself
   const result = await pool.query(
     `DELETE FROM placement_drives WHERE drive_id = $1 AND company_id = $2 RETURNING *`,
     [driveId, companyId]
