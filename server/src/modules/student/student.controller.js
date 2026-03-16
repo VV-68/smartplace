@@ -105,7 +105,10 @@ async function getCourseMaterials(req, res) {
 
 async function getUpcomingAssessments(req, res) {
   try {
-    const data = await studentService.getUpcomingAssessments();
+    const studentId = req.user.id;
+
+    const data = await studentService.getUpcomingAssessments(studentId);
+
     res.status(200).json(data);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -114,8 +117,11 @@ async function getUpcomingAssessments(req, res) {
 
 async function getAssessmentDetails(req, res) {
   try {
+    const studentId = req.user.id;
     const { assessmentId } = req.params;
-    const data = await studentService.getAssessmentDetails(assessmentId);
+
+    const data = await studentService.getAssessmentDetails(studentId, assessmentId);
+
     res.status(200).json(data);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -155,7 +161,7 @@ async function submitAssessment(req, res) {
     const studentId = req.user.user_id || req.user.id;
     const { assessmentId } = req.params;
     const { submission_url } = req.body;
-    
+
     if (!submission_url) {
       return res.status(400).json({ error: "submission_url is required" });
     }
@@ -206,7 +212,7 @@ async function getAvailableSlots(req, res) {
 async function bookSlot(req, res) {
   try {
     const { driveId } = req.body;
-    
+
     // Check eligibility first
     const eligibility = await studentService.checkStudentDriveEligibility(req.user.id, driveId);
     if (!eligibility.eligible) {

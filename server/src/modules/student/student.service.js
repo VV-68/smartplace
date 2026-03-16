@@ -125,7 +125,7 @@ async function getCourseMaterials(courseId) {
    ASSESSMENTS
 ========================= */
 
-async function getUpcomingAssessments() {
+async function getUpcomingAssessments(studentId) {
   const result = await pool.query(
     `SELECT a.assessment_id,
             a.title,
@@ -133,14 +133,20 @@ async function getUpcomingAssessments() {
             a.deadline,
             c.name AS course_name
      FROM assessments a
-     JOIN courses c ON a.course_id = c.course_id
-     WHERE a.deadline > NOW()
-     ORDER BY a.deadline ASC`
+     JOIN courses c 
+       ON a.course_id = c.course_id
+     JOIN enrollments e 
+       ON e.course_id = a.course_id
+     WHERE e.student_id = $1
+       AND a.deadline > NOW()
+     ORDER BY a.deadline ASC`,
+    [studentId]
   );
+
   return result.rows;
 }
 
-async function getAssessmentDetails(assessmentId) {
+async function getAssessmentDetails(studentId, assessmentId) {
   const result = await pool.query(
     `SELECT a.assessment_id,
             a.title,
@@ -148,10 +154,15 @@ async function getAssessmentDetails(assessmentId) {
             a.deadline,
             c.name AS course_name
      FROM assessments a
-     JOIN courses c ON a.course_id = c.course_id
-     WHERE a.assessment_id = $1`,
-    [assessmentId]
+     JOIN courses c 
+       ON a.course_id = c.course_id
+     JOIN enrollments e 
+       ON e.course_id = a.course_id
+     WHERE a.assessment_id = $1
+     AND e.student_id = $2`,
+    [assessmentId, studentId]
   );
+
   return result.rows[0];
 }
 
@@ -491,7 +502,7 @@ async function getMyApplications(studentId) {
      WHERE dr.student_id = $1 AND dr.status = 'selected'`,
     [studentId]
   );
-  
+
   return result.rows.map(row => ({
     ...row,
     status: row.status || 'offered'
@@ -555,10 +566,10 @@ async function respondToOffer(studentId, offerId, decision) {
 
   let updateRes;
   let previousStatus = null;
-  
+
   if (existingApp.rows.length > 0) {
     previousStatus = existingApp.rows[0].status;
-    const setQuery = decision === 'accepted' 
+    const setQuery = decision === 'accepted'
       ? `SET status = $1, updated_at = NOW(), accepted_at = NOW()`
       : `SET status = $1, updated_at = NOW()`;
 
@@ -580,7 +591,7 @@ async function respondToOffer(studentId, offerId, decision) {
          SELECT $1, $2, $3, NOW(), NOW()
          WHERE NOT EXISTS (SELECT 1 FROM offer_applications WHERE offer_id = $1 AND student_id = $2)
          RETURNING *`;
-    
+
     updateRes = await pool.query(query, [offerId, studentId, decision]);
     if (updateRes.rows.length === 0) throw new Error("Concurrent duplicate request detected.");
   }

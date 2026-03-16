@@ -17,7 +17,7 @@ async function getCompanyProfile(userId) {
 
 async function updateCompanyProfile(userId, updateData) {
   const { company_name, website, industry, description, contact_person } = updateData;
-  
+
   const result = await pool.query(
     `INSERT INTO companies (user_id, company_name, website, industry, description, contact_person)
      VALUES ($1, $2, $3, $4, $5, $6)
@@ -39,7 +39,7 @@ async function updateCompanyProfile(userId, updateData) {
 
 async function requestPlacementDrive(userId, driveData) {
   const { drive_date, start_time, end_time, mode, drive_type, location, meeting_link, min_cgpa, eligible_departments, registration_deadline, graduation_year } = driveData;
-  
+
   if (min_cgpa !== undefined && (min_cgpa < 0 || min_cgpa > 10)) {
     throw new Error("Invalid CGPA requirement");
   }
@@ -160,7 +160,9 @@ async function createOffer(userId, offerData) {
      RETURNING *`,
     [drive_id, userId, title, description, package_lpa, location, acceptance_deadline]
   );
-
+  if (result.rows.length === 0) {
+    throw new Error("Failed to create offer for the drive. offer already created");
+  }
   const offer = result.rows[0];
 
   // Increment offers_received for students selected in this drive
@@ -222,7 +224,7 @@ async function deleteOffer(companyId, offerId) {
     `DELETE FROM placement_offers WHERE offer_id = $1 AND company_id = $2 RETURNING *`,
     [offerId, companyId]
   );
-  
+
   return result.rows[0];
 }
 
@@ -255,7 +257,7 @@ async function updateApplicantStatus(userId, registrationId, status) {
      RETURNING dr.*`,
     [status, userId, registrationId]
   );
-  
+
   if (result.rows.length === 0) {
     throw new Error("Applicant record not found or unauthorized");
   }
@@ -302,7 +304,7 @@ async function hireApplicant(companyId, applicationId) {
   if (appRes.rows.length === 0) {
     throw new Error("Application not found or unauthorized");
   }
-  
+
   const studentId = appRes.rows[0].student_id;
 
   const result = await pool.query(
