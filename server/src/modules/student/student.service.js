@@ -1,8 +1,6 @@
 const pool = require("../../config/db");
 
-/* =========================
-   STUDENT PROFILE
-========================= */
+/*STUDENT PROFILE*/
 
 async function getStudentProfile(userId) {
   const result = await pool.query(
@@ -44,9 +42,7 @@ async function updateStudentProfile(userId, updateData) {
   return result.rows[0];
 }
 
-/* =========================
-   COURSES
-========================= */
+/*COURSES*/
 
 async function getEnrolledCourses(userId) {
   const result = await pool.query(
@@ -177,33 +173,25 @@ async function startAssessment(studentId, assessmentId) {
     WHERE a.assessment_id = $1
   `;
 
-  const questionsQuery = `
-    SELECT
-      q.question_id,
-      q.question_text,
-      q.options,
-      q.marks
-    FROM assessment_questions q
-    WHERE q.assessment_id = $1
-  `;
-
   const assessment = await pool.query(assessmentQuery, [assessmentId]);
 
   if (assessment.rows.length === 0) {
     throw new Error("Assessment not available");
   }
 
-  // Allow starting even if deadline passed? The prompt snippet didn't check, 
-  // but let's keep the user's focus on returning the correct shape.
-  const questions = await pool.query(questionsQuery, [assessmentId]);
-
-  return {
-    ...assessment.rows[0],
-    questions: questions.rows
-  };
+  return assessment.rows[0];
 }
 
 async function submitAssessment(studentId, assessmentId, submissionUrl) {
+  // Check if already submitted
+  const existing = await pool.query(
+    `SELECT * FROM assessment_submissions WHERE assessment_id = $1 AND student_id = $2`,
+    [assessmentId, studentId]
+  );
+  if (existing.rowCount > 0) {
+    throw new Error("Already submitted");
+  }
+
   const result = await pool.query(
     `INSERT INTO assessment_submissions
      (assessment_id, student_id, submission_url)
@@ -212,6 +200,15 @@ async function submitAssessment(studentId, assessmentId, submissionUrl) {
     [assessmentId, studentId, submissionUrl]
   );
   return result.rows[0];
+}
+
+async function getAssessmentSubmission(studentId, assessmentId) {
+  const result = await pool.query(
+    `SELECT submission_url, score, feedback FROM assessment_submissions
+     WHERE student_id = $1 AND assessment_id = $2`,
+    [studentId, assessmentId]
+  );
+  return result.rows[0] || null;
 }
 
 async function getAssessmentResults(studentId) {
@@ -248,6 +245,117 @@ async function getAssessmentHistory(studentId) {
   );
   return result.rows;
 }
+
+async function submitDoubt(studentId, courseId, message) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // 1. Create doubt thread (NO message stored)
+    const doubtRes = await client.query(
+      `INSERT INTO doubts (student_id, course_id)
+       VALUES ($1, $2)
+       RETURNING *`,
+      [studentId, courseId]
+    );
+
+    const doubt = doubtRes.rows[0];
+
+    // 2. Insert FIRST message into chat table
+    await client.query(
+      `INSERT INTO doubt_responses (doubt_id, sender_id, sender_role, message, is_read)
+        VALUES ($1, $2, 'student', $3, true)`,
+      [doubt.doubt_id, studentId, message]
+    );
+
+    await client.query("COMMIT");
+
+    return doubt;
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function getStudentDoubts(studentId) {
+  const result = await pool.query(
+    `SELECT 
+        d.doubt_id,
+        d.status,
+        d.created_at,
+        c.name AS course_name,
+
+        EXISTS (
+          SELECT 1
+          FROM doubt_responses dr
+          WHERE dr.doubt_id = d.doubt_id
+          AND dr.sender_role = 'faculty'
+          AND dr.is_read = false
+        ) AS has_unread
+
+     FROM doubts d
+     JOIN courses c ON c.course_id = d.course_id
+
+     WHERE d.student_id = $1
+
+     ORDER BY d.created_at DESC`,
+    [studentId]
+  );
+
+  return result.rows;
+}
+
+async function markMessagesAsRead(studentId, doubtId) {
+  await pool.query(
+    `UPDATE doubt_responses
+     SET is_read = true
+     WHERE doubt_id = $1
+     AND sender_role = 'faculty'
+     AND is_read = false`,
+    [doubtId]
+  );
+}
+
+async function getDoubtMessages(doubtId) {
+  const result = await pool.query(
+    `SELECT dr.*, u.fname, u.lname
+     FROM doubt_responses dr
+     JOIN users u ON dr.sender_id = u.user_id
+     WHERE dr.doubt_id = $1
+     ORDER BY dr.created_at ASC`,
+    [doubtId]
+  );
+
+  return result.rows;
+}
+
+async function sendDoubtMessage(doubtId, senderId, senderRole, message) {
+  const result = await pool.query(
+    `INSERT INTO doubt_responses (doubt_id, sender_id, sender_role, message, is_read)
+      VALUES ($1, $2, $3, $4, false)
+     RETURNING *`,
+    [doubtId, senderId, senderRole, message]
+  );
+
+  return result.rows[0];
+}
+
+async function updateDoubtStatus(doubtId, status) {
+  const result = await pool.query(
+    `UPDATE doubts
+     SET status = $1
+     WHERE doubt_id = $2
+     RETURNING *`,
+    [status, doubtId]
+  );
+
+  return result.rows[0];
+}
+
 
 /* =========================
    PLACEMENT SLOTS
@@ -670,5 +778,12 @@ module.exports = {
   getOfferStatus,
   withdrawApplication,
   respondToOffer,
-  getOfferHistory
+  getOfferHistory,
+  //newly added
+  submitDoubt,
+  getStudentDoubts,
+  getDoubtMessages,
+  sendDoubtMessage,
+  updateDoubtStatus,
+  markMessagesAsRead
 };

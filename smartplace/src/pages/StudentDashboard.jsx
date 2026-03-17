@@ -31,6 +31,16 @@ export default function StudentDashboard({
   const [currentAssessmentData, setCurrentAssessmentData] = useState(null);
   const [submissionUrl, setSubmissionUrl] = useState("");
 
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState(new Set());
+  const [newDoubt, setNewDoubt] = useState({ course_id: "", doubt_text: "" });
+  const [doubtSubmitMessage, setDoubtSubmitMessage] = useState("");
+
+  const [doubts, setDoubts] = useState([]);
+  const [selectedDoubt, setSelectedDoubt] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+
+
   const needsOnboarding = useMemo(() => {
     return profile && profile.user_id === null;
   }, [profile]);
@@ -71,6 +81,7 @@ export default function StudentDashboard({
       } else if (tab === "courses") {
         const res = await api.get("/courses/enrolled");
         setCourses(res.data);
+        setEnrolledCourseIds(new Set(res.data.map(c => c.course_id)));
         setCourseTab("enrolled");
       } else if (tab === "assessments") {
         const res = await api.get("/assessments/upcoming");
@@ -97,6 +108,39 @@ export default function StudentDashboard({
       setLoading(false);
     }
   };
+
+  const fetchDoubts = async () => {
+  try {
+    const res = await api.get("/doubts");
+    setDoubts(res.data || []);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const loadDoubtChat = async (doubtId) => {
+  try {
+    const res = await api.get(`/doubts/${doubtId}/messages`);
+    setChatMessages(res.data || []);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const sendMessage = async () => {
+  if (!newMessage.trim() || !selectedDoubt) return;
+
+  try {
+    await api.post(`/doubts/${selectedDoubt.doubt_id}/message`, {
+      message: newMessage
+    });
+
+    setNewMessage("");
+    loadDoubtChat(selectedDoubt.doubt_id);
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const sidebarItems = [
     { id: "home", label: "Dashboard" },
@@ -344,57 +388,283 @@ export default function StudentDashboard({
             setCourseTab("available");
           });
         }}>Available Courses</button>
+        <button className={`btn ${courseTab === 'doubts' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => {
+          api.get("/courses/enrolled").then(res => {
+            setCourses(res.data);
+            setCourseTab("doubts");
+            fetchDoubts();
+            setDoubtSubmitMessage("");
+            if (res.data.length > 0) setNewDoubt({ ...newDoubt, course_id: res.data[0].course_id });
+          });
+        }}>Doubts</button>
       </div>
+      
+    {courseTab === 'doubts' ? (
+      <div style={{ display: "flex", gap: "20px" }}>
 
-      <div className="table-responsive">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Course Name</th>
-              <th>Instructor</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {courses.length === 0 ? <tr><td colSpan={3} style={{ textAlign: 'center' }}>No courses found</td></tr> :
-              courses.map((course) => (
-                <tr key={course.course_id}>
-                  <td>{course.name}</td>
-                  <td>{course.faculty_fname} {course.faculty_lname}</td>
-                  <td>
-                    {courseTab === 'enrolled' ? (
-                      <button className="btn btn-secondary btn-sm" onClick={async () => {
-                        try {
-                          const res = await api.get(`/courses/${course.course_id}/materials`);
-                          setCurrentMaterials(res.data);
-                          setIsMaterialsModalOpen(true);
-                        } catch (err) {
-                          alert("Failed to load materials");
-                        }
-                      }}>View Materials</button>
-                    ) : (
-                      <button className="btn btn-primary btn-sm" onClick={async () => {
-                        try {
-                          await api.post(`/courses/enroll/${course.course_id}`);
-                          alert("Enrolled successfully!");
-                          // Follow user requirement: refresh both lists.
-                          // Best way is to just fetch available again to update the current list.
-                          const res = await api.get("/courses/available");
-                          setCourses(res.data);
-                        } catch (err) {
-                          alert("Failed to enroll");
-                        }
-                      }}>Enroll</button>
+        {/* LEFT: DOUBT LIST + CREATE */}
+        <div style={{ width: "30%", borderRight: "1px solid #ddd", paddingRight: "10px" }}>
+          
+          <h4>Ask Doubt</h4>
+
+          <select
+            className="form-input"
+            value={newDoubt.course_id}
+            onChange={(e) => setNewDoubt({ ...newDoubt, course_id: e.target.value })}
+          >
+            <option value="">Select Course</option>
+            {courses.map(c => (
+              <option key={c.course_id} value={c.course_id}>{c.name}</option>
+            ))}
+          </select>
+
+          <textarea
+            className="form-input"
+            rows="3"
+            value={newDoubt.doubt_text}
+            onChange={(e) => setNewDoubt({ ...newDoubt, doubt_text: e.target.value })}
+            placeholder="Enter doubt..."
+            style={{ marginTop: "10px" }}
+          />
+
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: "10px", width: "100%" }}
+            onClick={async () => {
+              if (!newDoubt.course_id || !newDoubt.doubt_text.trim()) {
+                alert("Enter details");
+                return;
+              }
+
+              try {
+                const res = await api.post("/doubts", newDoubt);
+
+                setNewDoubt({ ...newDoubt, doubt_text: "" });
+
+                fetchDoubts();
+
+                setSelectedDoubt(res.data);
+                loadDoubtChat(res.data.doubt_id);
+
+              } catch {
+                alert("Failed");
+              }
+            }}
+          >
+            Create
+          </button>
+
+          <hr style={{ margin: "20px 0" }} />
+
+         <h4>Your Doubts</h4>
+
+            {doubts.length === 0 ? (
+              <p>No doubts</p>
+            ) : (
+              doubts.map((d) => {
+                return (
+                  <div
+                    key={d.doubt_id}
+                    style={{
+                      padding: "10px",
+                      borderBottom: "1px solid #eee",
+                      cursor: "pointer",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center"
+                    }}
+                 onClick={async () => {
+                      setSelectedDoubt(d);
+                      setDoubts(prev =>
+                        prev.map(item =>
+                          item.doubt_id === d.doubt_id
+                            ? { ...item, unread_count: 0, has_unread: false }
+                            : item
+                         )
+                      );
+                      await loadDoubtChat(d.doubt_id);
+                    }}
+                  >
+                    <div>
+                      <strong>{d.course_name}</strong>
+                      <br />
+                      <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                        Doubt #{d.doubt_id}
+                      </span>
+                      <br />
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: d.status === "RESOLVED" ? "#16a34a" : "#f59e0b",
+                          fontWeight: "bold"
+                        }}
+                      >
+                        {d.status}
+                      </span>
+                    </div>
+
+                    {d.has_unread && (
+                      <div
+                        style={{
+                          width: "10px",
+                          height: "10px",
+                          background: "#4dd55bff",
+                          borderRadius: "50%"
+                        }}
+                      />
                     )}
-                  </td>
-                </tr>
-              ))
-            }
-          </tbody>
-        </table>
+                  </div>
+                );
+              })
+            )}
+        </div>
+
+        {/* RIGHT: CHAT */}
+        <div style={{ width: "70%" }}>
+
+          {selectedDoubt ? (
+            <>
+              {/* HEADER */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                <div>
+                  <h4 style={{ margin: 0 }}>Chat</h4>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: selectedDoubt.status === "RESOLVED" ? "#16a34a" : "#f59e0b",
+                      fontWeight: "bold"
+                    }}
+                  >
+                    {selectedDoubt.status}
+                  </span>
+                </div>
+                {selectedDoubt.status !== "RESOLVED" && (
+                  <button
+                    className="btn btn-success"
+                    onClick={async () => {
+                      try {
+                        await api.put(`/doubts/${selectedDoubt.doubt_id}/status`, { status: "RESOLVED" });
+                        setSelectedDoubt(prev => ({ ...prev, status: "RESOLVED" }));
+                        setDoubts(prev => prev.map(d => 
+                          d.doubt_id === selectedDoubt.doubt_id ? { ...d, status: "RESOLVED" } : d
+                        ));
+                      } catch (err) {
+                        alert("Failed to update status");
+                      }
+                    }}
+                  >
+                    Mark as Resolved
+                  </button>
+                )}
+              </div>
+
+              <div
+                style={{
+                  height: "350px",
+                  overflowY: "auto",
+                  border: "1px solid #ddd",
+                  padding: "10px",
+                  marginBottom: "10px"
+                }}
+              >
+                {chatMessages.map(msg => (
+                  <div
+                    key={msg.response_id}
+                    style={{
+                      textAlign: msg.sender_id === user.id ? "right" : "left",
+                      marginBottom: "10px"
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "inline-block",
+                        padding: "8px",
+                        borderRadius: "6px",
+                        background: msg.sender_id === user.id ? "#3b82f6" : "#e5e7eb",
+                        color: msg.sender_id === user.id ? "#f2f3f2ff" : "#000"
+                      }}
+                    >
+                      {msg.message}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: "10px" }}>
+                <input
+                  className="form-input"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type message..."
+                  disabled={selectedDoubt.status === "RESOLVED"}
+                />
+                <button 
+                  className="btn btn-primary" 
+                  onClick={sendMessage}
+                  disabled={selectedDoubt.status === "RESOLVED"}
+                >
+                  Send
+                </button>
+              </div>
+            </>
+          ) : (
+            <p>Select a doubt to start chat</p>
+          )}
+
+        </div>
       </div>
 
-
+      
+      ) : (
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Course Name</th>
+                <th>Instructor</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {courses.length === 0 ? <tr><td colSpan={3} style={{ textAlign: 'center' }}>No courses found</td></tr> :
+                courses.map((course) => (
+                  <tr key={course.course_id}>
+                    <td>{course.name}</td>
+                    <td>{course.faculty_fname} {course.faculty_lname}</td>
+                    <td>
+                      {courseTab === 'enrolled' ? (
+                        <button className="btn btn-secondary btn-sm" onClick={async () => {
+                          try {
+                            const res = await api.get(`/courses/${course.course_id}/materials`);
+                            setCurrentMaterials(res.data);
+                            setIsMaterialsModalOpen(true);
+                          } catch (err) {
+                            alert("Failed to load materials");
+                          }
+                        }}>View Materials</button>
+                      ) : enrolledCourseIds.has(course.course_id) ? (
+                        <span className="status-badge enrolled" style={{ backgroundColor: '#16a34a', color: '#fff' }}>Enrolled</span>
+                      ) : (
+                        <button className="btn btn-primary btn-sm" onClick={async () => {
+                          try {
+                            await api.post(`/courses/enroll/${course.course_id}`);
+                            alert("Enrolled successfully!");
+                            setEnrolledCourseIds(prev => new Set([...prev, course.course_id]));
+                            const res = await api.get("/courses/available");
+                            setCourses(res.data);
+                          } catch (err) {
+                            alert("Failed to enroll");
+                          }
+                        }}>Enroll</button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 
@@ -430,7 +700,7 @@ export default function StudentDashboard({
                         className="btn btn-primary btn-sm"
                         onClick={async () => {
                           try {
-                            const res = await api.get(`/assessments/${a.assessment_id}/start`);
+                            const res = await api.get(`/assessments/${a.assessment_id}`);
                             setCurrentAssessmentData(res.data);
                             setIsSubmissionModalOpen(true);
                           } catch (err) {
@@ -451,265 +721,198 @@ export default function StudentDashboard({
     </section>
   );
 
-  // const renderSlots = () => (
-  //   <section className="content-card">
-  //     <div className="tab-header" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center' }}>
-  //       <h3>Available Placement Drives</h3>
-  //       <div className="tab-actions">
-  //         <button className="btn btn-primary" onClick={() => fetchData("slots")}>Refresh Available</button>
-  //         <button className="btn btn-secondary" onClick={() => api.get("/slots/my").then(res => setSlots(res.data))}>My Registrations</button>
-  //       </div>
-  //     </div>
-
-  //     <p className="page-subtitle">Select and apply for upcoming company recruitment drives</p>
-
-  //     <div className="table-responsive">
-  //       <table className="data-table">
-  //         <thead>
-  //           <tr>
-  //             <th>Company</th>
-  //             <th>Date</th>
-  //             <th>Type</th>
-  //             <th>Mode</th>
-  //             <th>Status</th>
-  //             <th>Action</th>
-  //           </tr>
-  //         </thead>
-  //         <tbody>
-  //           {slots.length === 0 ? (
-  //             <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>No drives found for this category</td></tr>
-  //           ) : (
-  //             slots.map((drive) => (
-  //               <tr key={drive.drive_id}>
-  //                 <td><strong>{drive.company_name || 'TBA'}</strong></td>
-  //                 <td>{new Date(drive.drive_date).toLocaleDateString()}</td>
-  //                 <td>{drive.drive_type?.toUpperCase()}</td>
-  //                 <td>{drive.mode?.toUpperCase()}</td>
-  //                 <td>
-  //                   <span className={`status-badge ${drive.status || 'available'}`}>
-  //                     {drive.status || 'Available'}
-  //                   </span>
-  //                 </td>
-  //                 <td>
-  //                   {!drive.registration_id ? (
-  //                     <button
-  //                       className="btn btn-primary btn-sm"
-  //                       onClick={async () => {
-  //                         try {
-  //                           await api.post("/slots/book", { driveId: drive.drive_id });
-  //                           alert("Successfully applied for the drive!");
-  //                           fetchData("slots");
-  //                         } catch (err) {
-  //                           alert(`Eligibility not met: ${err.response?.data?.error || 'Failed to apply'}`);
-  //                         }
-  //                       }}
-  //                     >
-  //                       Apply Now
-  //                     </button>
-  //                   ) : (
-  //                     <button className="btn btn-secondary btn-sm" disabled>Applied</button>
-  //                   )}
-  //                 </td>
-  //               </tr>
-  //             ))
-  //           )}
-  //         </tbody>
-  //       </table>
-  //     </div>
-  //   </section>
-  // );
 
   const renderEligibleDrives = () => (
-  <section className="content-card">
-    {profile?.offers_received >= 2 && (
-      <div style={{ backgroundColor: '#fef2f2', color: '#991b1b', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #fecaca', fontWeight: 'bold' }}>
-        Maximum number of offers received. Cannot participate in new drives.
-      </div>
-    )}
+    <section className="content-card">
+      {profile?.offers_received >= 2 && (
+        <div style={{ backgroundColor: '#fef2f2', color: '#991b1b', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #fecaca', fontWeight: 'bold' }}>
+          Maximum number of offers received. Cannot participate in new drives.
+        </div>
+      )}
 
-    <div
-      className="tab-header"
-      style={{
-        justifyContent: "space-between",
-        display: "flex",
-        alignItems: "center"
-      }}
-    >
-      <h3>Eligible Placement Drives</h3>
-
-      <button
-        className="btn btn-primary"
-        onClick={() => fetchData("eligible-drives")}
+      <div
+        className="tab-header"
+        style={{
+          justifyContent: "space-between",
+          display: "flex",
+          alignItems: "center"
+        }}
       >
-        Refresh
-      </button>
-    </div>
+        <h3>Eligible Placement Drives</h3>
 
-    <p className="page-subtitle">
-      Placement drives you are eligible for based on your CGPA, department and placement status.
-    </p>
+        <button
+          className="btn btn-primary"
+          onClick={() => fetchData("eligible-drives")}
+        >
+          Refresh
+        </button>
+      </div>
 
-    <div className="table-responsive">
+      <p className="page-subtitle">
+        Placement drives you are eligible for based on your CGPA, department and placement status.
+      </p>
 
-      <table className="data-table">
+      <div className="table-responsive">
 
-        <thead>
-          <tr>
-            <th>Company</th>
-            <th>Role</th>
-            <th>Package</th>
-            <th>Drive Date</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
+        <table className="data-table">
 
-        <tbody>
-
-          {eligibleDrives.length === 0 ? (
+          <thead>
             <tr>
-              <td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
-                No eligible drives available
-              </td>
+              <th>Company</th>
+              <th>Role</th>
+              <th>Package</th>
+              <th>Drive Date</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
-          ) : (
+          </thead>
 
-            eligibleDrives.map((drive) => (
+          <tbody>
 
-              <tr key={drive.drive_id}>
-
-                <td>
-                  <strong>{drive.company_name || "TBA"}</strong>
+            {eligibleDrives.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
+                  No eligible drives available
                 </td>
-
-                <td>
-                  {drive.role?.toUpperCase() || "N/A"}
-                </td>
-
-                <td>
-                  {drive.package_lpa === "TBD"
-                    ? "TBD"
-                    : `${drive.package_lpa} LPA`}
-                </td>
-
-                <td>
-                  {new Date(drive.drive_date).toLocaleDateString()}
-                </td>
-
-                <td>
-
-                  {drive.application_status === "accepted" ? (
-                    <span
-                      className="status-badge"
-                      style={{
-                        backgroundColor: "#16a34a",
-                        color: "white"
-                      }}
-                    >
-                      HIRED
-                    </span>
-
-                  ) : drive.application_id ? (
-
-                    <span
-                      className="status-badge"
-                      style={{
-                        backgroundColor: "#6b7280",
-                        color: "white"
-                      }}
-                    >
-                      APPLIED
-                    </span>
-
-                  ) : (
-
-                    <span
-                      className="status-badge"
-                      style={{
-                        backgroundColor: "#3b82f6",
-                        color: "white"
-                      }}
-                    >
-                      AVAILABLE
-                    </span>
-
-                  )}
-
-                </td>
-
-                <td>
-
-                  {drive.application_status === "accepted" ? (
-
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        fontWeight: "bold",
-                        color: "#16a34a"
-                      }}
-                    >
-                      Offer Accepted
-                    </span>
-
-                  ) : drive.application_id ? (
-
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      disabled
-                    >
-                      Applied
-                    </button>
-
-                  ) : (
-
-                    <button
-                      className="btn btn-primary btn-sm"
-                      disabled={profile?.offers_received >= 2}
-                      onClick={async () => {
-
-                        try {
-
-                          await api.post(
-                            "/slots/book",
-                            { driveId: drive.drive_id }
-                          );
-
-                          alert("Successfully applied for the drive!");
-
-                          fetchData("eligible-drives");
-
-                        } catch (err) {
-
-                          alert(
-                            err.response?.data?.error ||
-                            "Failed to apply for drive"
-                          );
-
-                        }
-
-                      }}
-                    >
-                      Apply Now
-                    </button>
-
-                  )}
-
-                </td>
-
               </tr>
+            ) : (
 
-            ))
+              eligibleDrives.map((drive) => (
 
-          )}
+                <tr key={drive.drive_id}>
 
-        </tbody>
+                  <td>
+                    <strong>{drive.company_name || "TBA"}</strong>
+                  </td>
 
-      </table>
+                  <td>
+                    {drive.role?.toUpperCase() || "N/A"}
+                  </td>
 
-    </div>
+                  <td>
+                    {drive.package_lpa === "TBD"
+                      ? "TBD"
+                      : `${drive.package_lpa} LPA`}
+                  </td>
 
-  </section>
-);
+                  <td>
+                    {new Date(drive.drive_date).toLocaleDateString()}
+                  </td>
+
+                  <td>
+
+                    {drive.application_status === "accepted" ? (
+                      <span
+                        className="status-badge"
+                        style={{
+                          backgroundColor: "#16a34a",
+                          color: "white"
+                        }}
+                      >
+                        HIRED
+                      </span>
+
+                    ) : drive.application_id ? (
+
+                      <span
+                        className="status-badge"
+                        style={{
+                          backgroundColor: "#6b7280",
+                          color: "white"
+                        }}
+                      >
+                        APPLIED
+                      </span>
+
+                    ) : (
+
+                      <span
+                        className="status-badge"
+                        style={{
+                          backgroundColor: "#3b82f6",
+                          color: "white"
+                        }}
+                      >
+                        AVAILABLE
+                      </span>
+
+                    )}
+
+                  </td>
+
+                  <td>
+
+                    {drive.application_status === "accepted" ? (
+
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          color: "#16a34a"
+                        }}
+                      >
+                        Offer Accepted
+                      </span>
+
+                    ) : drive.application_id ? (
+
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        disabled
+                      >
+                        Applied
+                      </button>
+
+                    ) : (
+
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={profile?.offers_received >= 2}
+                        onClick={async () => {
+
+                          try {
+
+                            await api.post(
+                              "/slots/book",
+                              { driveId: drive.drive_id }
+                            );
+
+                            alert("Successfully applied for the drive!");
+
+                            fetchData("eligible-drives");
+
+                          } catch (err) {
+
+                            alert(
+                              err.response?.data?.error ||
+                              "Failed to apply for drive"
+                            );
+
+                          }
+
+                        }}
+                      >
+                        Apply Now
+                      </button>
+
+                    )}
+
+                  </td>
+
+                </tr>
+
+              ))
+
+            )}
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </section>
+  );
 
   const renderDriveEligibility = () => (
     <section className="content-card">
@@ -967,15 +1170,18 @@ export default function StudentDashboard({
         <div className="modal-overlay">
           <div className="modal-content">
             <h2>{currentAssessmentData.title}</h2>
-            <p style={{ marginTop: "0.5rem", marginBottom: "1.5rem", color: "#6b7280" }}>
-              {currentAssessmentData.description || "No description provided."}
+            <p style={{ marginTop: "0.5rem", marginBottom: "0.5rem", color: "#6b7280" }}>
+              <strong>Description / Instructions:</strong> {currentAssessmentData.description || "No description provided."}
+            </p>
+            <p style={{ marginBottom: "1.5rem", color: "#d97706", fontWeight: 'bold' }}>
+              <strong>Deadline:</strong> {new Date(currentAssessmentData.deadline).toLocaleString()}
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <input
                 className="form-input"
-                type="text"
-                placeholder="Paste your submission link"
+                type="url"
+                placeholder="Paste your submission link (e.g., GitHub, Drive)"
                 value={submissionUrl}
                 onChange={(e) => setSubmissionUrl(e.target.value)}
               />
@@ -984,7 +1190,7 @@ export default function StudentDashboard({
                   className="btn btn-primary"
                   onClick={async () => {
                     try {
-                      await api.post(`/assessments/${currentAssessmentData.assessment_id}/submit`, { submission_url: submissionUrl });
+                      await api.post(`/assessments/${currentAssessmentData.assessment_id}/submit`, { submission_link: submissionUrl });
                       alert("Assessment submitted successfully!");
                       setIsSubmissionModalOpen(false);
                       setSubmissionUrl("");

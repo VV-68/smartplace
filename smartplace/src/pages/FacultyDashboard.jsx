@@ -32,6 +32,10 @@ export default function FacultyDashboard({
   const [gradeFormData, setGradeFormData] = useState({ submission_id: 0, grade: "", feedback: "" });
   const [showGradeForm, setShowGradeForm] = useState(false);
 
+  const [selectedDoubt, setSelectedDoubt] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+
   /* ================= AXIOS INSTANCE ================= */
   const api = useMemo(() => {
     return axios.create({
@@ -256,6 +260,32 @@ useEffect(() => {
       alert(`Failed to ${status.toLowerCase()} document`);
     }
   };
+
+const loadDoubtChat = async (doubtId) => {
+  try {
+    const res = await api.get(`/faculty/doubts/${doubtId}/messages`);
+    setMessages(res.data);
+  } catch (err) {
+    console.error("Failed to load messages");
+  }
+};
+
+const sendMessage = async () => {
+  if (!newMessage.trim() || !selectedDoubt) return;
+
+  try {
+    await api.post(`/faculty/doubts/${selectedDoubt.doubt_id}/message`, {
+      message: newMessage
+    });
+
+    setNewMessage("");
+    loadDoubtChat(selectedDoubt.doubt_id); // refresh
+  } catch (err) {
+    alert("Failed to send message");
+  }
+};
+
+
 
   /* ================= SIDEBAR ================= */
   const sidebarItems = [
@@ -515,46 +545,244 @@ useEffect(() => {
       )}
 
       {/* DOUBTS */}
-      {activeTab === "doubts" && (
-        <section className="content-card">
-          <h2>Student Questions</h2>
+    {activeTab === "doubts" && (
+  <div
+    style={{
+      display: "flex",
+      gap: "1.5rem",
+      height: "70vh",
+      background: "var(--bg-primary)",
+      padding: "1rem",
+      borderRadius: "10px",
+      border: "1px solid #e5e7eb"
+    }}
+  >
 
-          {showResponseForm && (
-            <form onSubmit={handleRespondToDoubt} className="content-card" style={{ marginBottom: "2rem" }}>
-              <h3>Respond to Doubt</h3>
-              <div style={{ display: "flex", gap: "1rem", flexDirection: "column" }}>
-                <textarea className="form-input" required placeholder="Type your answer here..." value={responseFormData.response} onChange={e => setResponseFormData({...responseFormData, response: e.target.value})} />
-                <div className="action-buttons">
-                  <button type="submit" className="btn btn-primary">Send Response</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowResponseForm(false)}>Cancel</button>
+    {/* LEFT PANEL */}
+    <div style={{ width: "35%", display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+      {/* HEADER */}
+      <div>
+        <h3 style={{ marginBottom: "0.5rem" }}>Student Doubts</h3>
+      </div>
+
+      {/* DOUBT LIST */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          border: "1px solid #e5e7eb",
+          borderRadius: "8px"
+        }}
+      >
+        {doubts.length === 0 ? (
+          <p style={{ padding: "1rem" }}>No doubts</p>
+        ) : (
+          doubts.map(d => (
+            <div
+              key={d.doubt_id}
+              style={{
+                padding: "12px",
+                cursor: "pointer",
+                borderBottom: "1px solid #eee",
+                background:
+                  selectedDoubt?.doubt_id === d.doubt_id
+                    ? "#eef2ff"
+                    : "transparent"
+              }}
+             onClick={async () => {
+                  setSelectedDoubt(d);
+
+                  await loadDoubtChat(d.doubt_id);
+
+                  const res = await api.get("/faculty/doubts");
+                  setDoubts(res.data);
+            }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  
+                  {/* LEFT SIDE */}
+                  <div>
+                    <strong>{d.course_name}</strong>
+                    <br />
+
+                    <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                      {d.last_message
+                        ? d.last_message.slice(0, 40)
+                        : "No messages yet"}
+                    </span>
+
+                    <br />
+
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: d.status === "RESOLVED" ? "#16a34a" : "#f59e0b",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      {d.status}
+                    </span>
+                  </div>
+
+                  {/* RIGHT SIDE */}
+                  <div style={{ textAlign: "right" }}>
+                    
+                    {/* UNREAD BADGE */}
+                    {d.unread_count > 0 && (
+                      <div
+                        style={{
+                          background: "#41e794ff",
+                          color: "white",
+                          borderRadius: "50%",
+                          width: "15px",
+                          height: "15px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          marginBottom: "5px"
+                        }}
+                      >
+                        {/* {d.unread_count} */}
+                      </div>
+                    )}
+
+                    {/* TIME */}
+                    <span style={{ fontSize: "10px", color: "#9ca3af" }}>
+                      {d.last_message_time
+                        ? new Date(d.last_message_time).toLocaleTimeString()
+                        : ""}
+                    </span>
+                  </div>
+                </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+
+    {/* RIGHT PANEL */}
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        border: "1px solid rgba(255, 255, 255, 1)",
+        borderRadius: "8px",
+        padding: "1rem"
+      }}
+    >
+
+      {!selectedDoubt ? (
+        <div style={{ textAlign: "center", marginTop: "2rem", color: "#6b7280" }}>
+          Select a doubt to view conversation
+        </div>
+      ) : (
+        <>
+          {/* HEADER */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Doubt #{selectedDoubt.doubt_id}</h3>
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: selectedDoubt.status === "RESOLVED" ? "#16a34a" : "#f59e0b",
+                  fontWeight: "bold"
+                }}
+              >
+                {selectedDoubt.status}
+              </span>
+            </div>
+            
+            {selectedDoubt.status !== "RESOLVED" && (
+              <button
+                className="btn btn-success"
+                onClick={async () => {
+                  try {
+                    await api.put(`/faculty/doubts/${selectedDoubt.doubt_id}/status`, { status: "RESOLVED" });
+                    setSelectedDoubt(prev => ({ ...prev, status: "RESOLVED" }));
+                    setDoubts(prev => prev.map(d => 
+                      d.doubt_id === selectedDoubt.doubt_id ? { ...d, status: "RESOLVED" } : d
+                    ));
+                  } catch (err) {
+                    alert("Failed to update status");
+                  }
+                }}
+              >
+                Mark as Resolved
+              </button>
+            )}
+          </div>
+
+          {/* CHAT */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: "10px",
+              background: "#f9fafb",
+              borderRadius: "6px",
+              marginBottom: "1rem"
+            }}
+          >
+            {messages.map(msg => (
+              <div
+                key={msg.response_id}
+                style={{
+                  textAlign: msg.sender_role === "faculty" ? "right" : "left",
+                  marginBottom: "10px"
+                }}
+              >
+                <div
+                  style={{
+                    display: "inline-block",
+                    padding: "8px 12px",
+                    borderRadius: "10px",
+                    background:
+                      msg.sender_role === "faculty"
+                        ? "#3b82f6"
+                        : "#e5e7eb",
+                    color:
+                      msg.sender_role === "faculty"
+                        ? "white"
+                        : "black",
+                    maxWidth: "70%"
+                  }}
+                >
+                  <strong style={{ fontSize: "12px" }}>
+                    {msg.fname}
+                  </strong>
+                  <br />
+                  {msg.message}
                 </div>
               </div>
-            </form>
-          )}
-
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead><tr><th>Student</th><th>Course</th><th>Question</th><th>Status</th><th>Action</th></tr></thead>
-              <tbody>
-                {doubts.length === 0 ? <tr><td colSpan={5}>No doubts reported.</td></tr> :
-                  doubts.map(d => (
-                    <tr key={d.doubt_id}>
-                      <td>{d.fname} {d.lname}</td>
-                      <td>{d.course_name}</td>
-                      <td>{d.question}</td>
-                      <td><span className={`status-badge ${d.status === "RESOLVED" ? "selected" : "pending"}`}>{d.status}</span></td>
-                      <td>
-                        <button className="btn btn-secondary" onClick={() => { setResponseFormData({ doubt_id: d.doubt_id, response: d.response || "" }); setShowResponseForm(true); }}>
-                          {d.response ? "Edit Response" : "Respond"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+            ))}
           </div>
-        </section>
+
+          {/* INPUT */}
+          <div style={{ display: "flex", gap: "10px" }}>
+            <input
+              className="form-input"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type message..."
+              disabled={selectedDoubt.status === "RESOLVED"}
+            />
+            <button 
+              className="btn btn-primary" 
+              onClick={sendMessage}
+              disabled={selectedDoubt.status === "RESOLVED"}
+            >
+              Send
+            </button>
+          </div>
+        </>
       )}
+    </div>
+  </div>
+)}
 
       {/* ADVISOR PANEL */}
       {activeTab === "advisor" && isAdvisor && (
