@@ -16,18 +16,42 @@ async function getAlumniProfile(userId) {
 }
 
 async function updateAlumniProfile(userId, profileData) {
-  const { company, graduation_year } = profileData;
-  const result = await pool.query(
-    `INSERT INTO alumni (user_id, company, graduation_year)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (user_id) 
-     DO UPDATE SET 
-        company = EXCLUDED.company,
-        graduation_year = EXCLUDED.graduation_year
-     RETURNING *`,
-    [userId, company, graduation_year]
-  );
-  return result.rows[0];
+  const { fname, lname, company, graduation_year } = profileData;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+
+    // Update first name and last name in the users table
+    if (fname || lname) {
+      await client.query(
+        `UPDATE users SET fname = COALESCE($1, fname), lname = COALESCE($2, lname) WHERE user_id = $3`,
+        [fname, lname, userId]
+      );
+    }
+
+    // Update company and graduation_year in the alumni table
+    await client.query(
+      `INSERT INTO alumni (user_id, company, graduation_year)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id) 
+       DO UPDATE SET 
+          company = COALESCE(EXCLUDED.company, alumni.company),
+          graduation_year = COALESCE(EXCLUDED.graduation_year, alumni.graduation_year)`,
+      [userId, company, graduation_year]
+    );
+
+    await client.query('COMMIT');
+    
+    // Fetch and return the updated combined profile
+    return await getAlumniProfile(userId);
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /* =========================

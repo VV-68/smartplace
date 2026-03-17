@@ -107,11 +107,11 @@ export default function PlacementGuidance({ accessToken, userRole }) {
                 {d.content}
               </p>
               
-              {userRole === 'alumni' && (
-                <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', textAlign: 'right' }}>
-                  <button className="btn btn-secondary btn-sm">View & Provide Guidance →</button>
-                </div>
-              )}
+              <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', textAlign: 'right' }}>
+                <button className="btn btn-secondary btn-sm">
+                  {userRole === 'alumni' ? 'View & Provide Guidance →' : 'View Discussion →'}
+                </button>
+              </div>
             </div>
           ))
         )}
@@ -177,14 +177,14 @@ export default function PlacementGuidance({ accessToken, userRole }) {
                 ) : (
                   selectedDiscussion.replies?.map(r => (
                     <div key={r.id} style={{ 
-                      alignSelf: r.role === 'student' ? 'flex-end' : 'flex-start',
+                      alignSelf: r.role === userRole ? 'flex-end' : 'flex-start',
                       maxWidth: '85%',
                       padding: '1rem', 
                       background: r.role === 'alumni' ? 'rgba(56, 189, 248, 0.1)' : 'var(--bg-tertiary)', 
                       borderRadius: '12px',
                       border: r.role === 'alumni' ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid var(--border-color)',
-                      borderBottomRightRadius: r.role === 'student' ? '2px' : '12px',
-                      borderBottomLeftRadius: r.role !== 'student' ? '2px' : '12px',
+                      borderBottomRightRadius: r.role === userRole ? '2px' : '12px',
+                      borderBottomLeftRadius: r.role !== userRole ? '2px' : '12px',
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '1rem' }}>
                         <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{r.fname} {r.lname}</span>
