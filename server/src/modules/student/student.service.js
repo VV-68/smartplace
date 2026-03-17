@@ -177,33 +177,25 @@ async function startAssessment(studentId, assessmentId) {
     WHERE a.assessment_id = $1
   `;
 
-  const questionsQuery = `
-    SELECT
-      q.question_id,
-      q.question_text,
-      q.options,
-      q.marks
-    FROM assessment_questions q
-    WHERE q.assessment_id = $1
-  `;
-
   const assessment = await pool.query(assessmentQuery, [assessmentId]);
 
   if (assessment.rows.length === 0) {
     throw new Error("Assessment not available");
   }
 
-  // Allow starting even if deadline passed? The prompt snippet didn't check, 
-  // but let's keep the user's focus on returning the correct shape.
-  const questions = await pool.query(questionsQuery, [assessmentId]);
-
-  return {
-    ...assessment.rows[0],
-    questions: questions.rows
-  };
+  return assessment.rows[0];
 }
 
 async function submitAssessment(studentId, assessmentId, submissionUrl) {
+  // Check if already submitted
+  const existing = await pool.query(
+    `SELECT * FROM assessment_submissions WHERE assessment_id = $1 AND student_id = $2`,
+    [assessmentId, studentId]
+  );
+  if (existing.rowCount > 0) {
+    throw new Error("Already submitted");
+  }
+
   const result = await pool.query(
     `INSERT INTO assessment_submissions
      (assessment_id, student_id, submission_url)
@@ -212,6 +204,15 @@ async function submitAssessment(studentId, assessmentId, submissionUrl) {
     [assessmentId, studentId, submissionUrl]
   );
   return result.rows[0];
+}
+
+async function getAssessmentSubmission(studentId, assessmentId) {
+  const result = await pool.query(
+    `SELECT submission_url, score, feedback FROM assessment_submissions
+     WHERE student_id = $1 AND assessment_id = $2`,
+    [studentId, assessmentId]
+  );
+  return result.rows[0] || null;
 }
 
 async function getAssessmentResults(studentId) {
@@ -247,6 +248,16 @@ async function getAssessmentHistory(studentId) {
     [studentId]
   );
   return result.rows;
+}
+
+async function submitDoubt(studentId, courseId, doubtText) {
+  const result = await pool.query(
+    `INSERT INTO doubts (student_id, course_id, question)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [studentId, courseId, doubtText]
+  );
+  return result.rows[0];
 }
 
 /* =========================
@@ -670,5 +681,6 @@ module.exports = {
   getOfferStatus,
   withdrawApplication,
   respondToOffer,
-  getOfferHistory
+  getOfferHistory,
+  submitDoubt
 };

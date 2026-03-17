@@ -216,6 +216,20 @@ exports.getDoubts = async (facultyId) => {
   return result.rows;
 };
 
+exports.getCourseDoubts = async (facultyId, courseId) => {
+  const result = await pool.query(
+    `SELECT d.*, u.fname, u.lname
+     FROM doubts d
+     JOIN courses c ON c.course_id = d.course_id
+     JOIN students s ON s.user_id = d.student_id
+     JOIN users u ON u.user_id = s.user_id
+     WHERE c.faculty_id = $1 AND d.course_id = $2
+     ORDER BY d.created_at DESC`,
+    [facultyId, courseId]
+  );
+  return result.rows;
+};
+
 exports.respondToDoubt = async (facultyId, doubtId, response) => {
   const check = await pool.query(
     `SELECT 1

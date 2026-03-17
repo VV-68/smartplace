@@ -143,6 +143,18 @@ exports.getDoubts = async (req, res, next) => {
   }
 };
 
+exports.getCourseDoubts = async (req, res, next) => {
+  try {
+    const doubts = await facultyService.getCourseDoubts(
+      req.user.id,
+      req.params.id
+    );
+    res.json(doubts);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getDoubtById = async (req, res, next) => {
   try {
     const doubt = await facultyService.getDoubtById(

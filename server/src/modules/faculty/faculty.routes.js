@@ -29,6 +29,7 @@ router.put("/materials/:id", facultyController.updateMaterial);
 router.delete("/materials/:id", facultyController.deleteMaterial);
 
 // Doubts
+router.get("/courses/:id/doubts", facultyController.getCourseDoubts);
 router.get("/doubts", facultyController.getDoubts);
 router.get("/doubts/:id", facultyController.getDoubtById);
 router.post("/doubts/:id/respond", facultyController.respondToDoubt);

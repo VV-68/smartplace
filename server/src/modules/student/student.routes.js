@@ -105,9 +105,15 @@ router.get(
 );
 
 router.post(
-  "/assessments/submit",
+  "/assessments/:assessmentId/submit",
   authMiddleware,
   studentController.submitAssessment
+);
+
+router.get(
+  "/assessments/:assessmentId/submission",
+  authMiddleware,
+  studentController.getAssessmentSubmission
 );
 
 /* =========================
@@ -159,6 +165,12 @@ router.get(
 /* =========================
    OFFERS
 ========================= */
+
+router.post(
+  "/doubts",
+  authMiddleware,
+  studentController.submitDoubt
+);
 
 router.post(
   "/offers/respond",
