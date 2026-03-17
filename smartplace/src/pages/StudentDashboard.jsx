@@ -4,7 +4,6 @@ import DashboardLayout from "../components/layout/DashboardLayout";
 import Onboarding from "./Onboarding";
 import PlacementGuidance from "../components/PlacementGuidance";
 import "../styles/Dashboard.css";
-import PlacementGuidance from "../components/PlacementGuidance";
 export default function StudentDashboard({
   user,
   accessToken

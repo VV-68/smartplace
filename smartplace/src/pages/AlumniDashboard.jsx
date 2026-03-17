@@ -3,6 +3,7 @@ import axios from 'axios';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import PlacementGuidance from '../components/PlacementGuidance';
 import Onboarding from './Onboarding';
+import AlumniProfile from '../components/AlumniProfile';
 import '../styles/Dashboard.css';
 
 export default function AlumniDashboard({ user, accessToken }) {
@@ -31,7 +32,7 @@ export default function AlumniDashboard({ user, accessToken }) {
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [api]);
 
   const needsOnboarding = useMemo(() => {
     return profile && profile.user_id === null;
@@ -40,7 +41,7 @@ export default function AlumniDashboard({ user, accessToken }) {
   const sidebarItems = [
     { id: 'guidance', label: 'Doubt Clearance' },
     { id: 'network', label: 'Alumni Network' },
-    { id: 'jobs', label: 'Post Jobs' },
+    { id: 'profile', label: 'Profile' },
   ];
 
   return (
@@ -70,6 +71,13 @@ export default function AlumniDashboard({ user, accessToken }) {
       <section className="content-card">
         {activeTab === 'guidance' ? (
           <PlacementGuidance accessToken={accessToken} userRole="alumni" />
+        ) : activeTab === 'profile' ? (
+          <AlumniProfile 
+            user={user} 
+            profile={profile} 
+            accessToken={accessToken} 
+            onUpdate={fetchProfile} 
+          />
         ) : (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
             <h3>Welcome to the Alumni Network</h3>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
 export default function PlacementGuidance({ accessToken, userRole }) {
@@ -8,6 +8,13 @@ export default function PlacementGuidance({ accessToken, userRole }) {
   const [selectedDiscussion, setSelectedDiscussion] = useState(null);
   const [newDiscussion, setNewDiscussion] = useState({ title: "", content: "", company_tag: "" });
   const [replyContent, setReplyContent] = useState("");
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedDiscussion) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [selectedDiscussion, selectedDiscussion?.replies]);
 
   const api = axios.create({
     baseURL: `${import.meta.env.VITE_API_URL}/alumni`,
@@ -143,80 +150,97 @@ export default function PlacementGuidance({ accessToken, userRole }) {
               </p>
             </div>
 
-            <div className="modal-sections" style={{ display: 'grid', gridTemplateColumns: userRole === 'alumni' ? '1fr 1fr' : '1fr', gap: '2rem' }}>
-              <div className="replies-section">
-                <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  Community Guidance
-                  <span style={{ fontSize: '0.8rem', background: 'var(--bg-primary)', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
-                    {selectedDiscussion.replies?.length || 0}
-                  </span>
-                </h3>
-                <div className="replies-container" style={{ 
-                  maxHeight: '400px', 
-                  overflowY: 'auto', 
-                  paddingRight: '0.5rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '1rem'
-                }}>
-                  {selectedDiscussion.replies?.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2rem', background: 'var(--bg-primary)', borderRadius: '8px', color: 'var(--text-secondary)' }}>
-                      <p style={{ margin: 0 }}>No guidance provided yet.</p>
-                    </div>
-                  ) : (
-                    selectedDiscussion.replies?.map(r => (
-                      <div key={r.id} style={{ 
-                        padding: '1rem', 
-                        background: 'var(--bg-primary)', 
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-color)'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{r.fname} {r.lname}</span>
-                          {r.role === 'alumni' && (
-                            <span className="status-badge verified" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}>
-                              Alumni • {r.current_company}
-                            </span>
-                          )}
-                        </div>
-                        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>{r.content}</p>
+            <div className="modal-sections" style={{ display: 'flex', flexDirection: 'column', height: '50vh' }}>
+              <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                Discussion Thread
+                <span style={{ fontSize: '0.8rem', background: 'var(--bg-primary)', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
+                  {selectedDiscussion.replies?.length || 0}
+                </span>
+              </h3>
+              
+              <div className="replies-container" style={{ 
+                flex: 1, 
+                overflowY: 'auto', 
+                padding: '1rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                background: 'var(--bg-primary)',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                marginBottom: '1rem'
+              }}>
+                {selectedDiscussion.replies?.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                    <p style={{ margin: 0 }}>No guidance provided yet. Waiting for alumni to reply.</p>
+                  </div>
+                ) : (
+                  selectedDiscussion.replies?.map(r => (
+                    <div key={r.id} style={{ 
+                      alignSelf: r.role === 'student' ? 'flex-end' : 'flex-start',
+                      maxWidth: '85%',
+                      padding: '1rem', 
+                      background: r.role === 'alumni' ? 'rgba(56, 189, 248, 0.1)' : 'var(--bg-tertiary)', 
+                      borderRadius: '12px',
+                      border: r.role === 'alumni' ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid var(--border-color)',
+                      borderBottomRightRadius: r.role === 'student' ? '2px' : '12px',
+                      borderBottomLeftRadius: r.role !== 'student' ? '2px' : '12px',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '1rem' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{r.fname} {r.lname}</span>
+                        {r.role === 'alumni' && (
+                          <span className="status-badge" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#e0f2fe', color: '#0369a1' }}>
+                            Alumni • {r.current_company}
+                          </span>
+                        )}
                       </div>
-                    ))
-                  )}
-                </div>
+                      <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{r.content}</p>
+                    </div>
+                  ))
+                )}
+                <div ref={chatEndRef} />
               </div>
 
-              {userRole === 'alumni' && (
-                <div className="reply-form-section" style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '2rem' }}>
-                  <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>Provide Your Guidance</h3>
-                  <form onSubmit={handlePostReply}>
-                    <textarea 
-                      className="form-input" 
-                      rows="8" 
-                      placeholder="Share your experience or answer the doubt..." 
-                      value={replyContent}
-                      onChange={e => setReplyContent(e.target.value)}
-                      required
-                      style={{ background: 'var(--bg-primary)', resize: 'none', marginBottom: '1.5rem' }}
-                    />
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem' }}>
-                      Post Your Answer
-                    </button>
-                  </form>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '1rem', textAlign: 'center' }}>
-                    Your advice helps students prepare better for their placements.
-                  </p>
-                </div>
-              )}
+              {(() => {
+                const hasAlumniReply = selectedDiscussion.replies?.some(r => r.role === 'alumni');
+                const canReply = userRole === 'alumni' || hasAlumniReply;
+
+                if (canReply) {
+                  return (
+                    <div className="reply-form-section">
+                      <form onSubmit={handlePostReply} style={{ display: 'flex', gap: '0.5rem' }}>
+                        <textarea 
+                          className="form-input" 
+                          rows="2" 
+                          placeholder={userRole === 'alumni' ? "Provide your guidance..." : "Ask a follow-up or reply..."} 
+                          value={replyContent}
+                          onChange={e => setReplyContent(e.target.value)}
+                          required
+                          style={{ flex: 1, background: 'var(--bg-primary)', resize: 'none', minHeight: '50px' }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              if(replyContent.trim()) handlePostReply(e);
+                            }
+                          }}
+                        />
+                        <button type="submit" className="btn btn-primary" style={{ padding: '0 1.5rem', whiteSpace: 'nowrap' }}>
+                          Send
+                        </button>
+                      </form>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div style={{ padding: '1rem', background: 'rgba(74, 222, 128, 0.05)', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(74, 222, 128, 0.1)' }}>
+                      <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
+                        Waiting for an alumni to provide initial guidance before others can reply.
+                      </p>
+                    </div>
+                  );
+                }
+              })()}
             </div>
-
-            {userRole !== 'alumni' && (
-              <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(74, 222, 128, 0.05)', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(74, 222, 128, 0.1)' }}>
-                <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
-                  Only verified alumni can provide guidance on placement doubts.
-                </p>
-              </div>
-            )}
           </div>
         </div>
       )}
