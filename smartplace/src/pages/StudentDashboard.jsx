@@ -455,28 +455,57 @@ const sendMessage = async () => {
 
           <hr style={{ margin: "20px 0" }} />
 
-          <h4>Your Doubts</h4>
+         <h4>Your Doubts</h4>
 
-          {doubts.length === 0 ? (
-            <p>No doubts</p>
-          ) : (
-            doubts.map(d => (
-              <div
-                key={d.doubt_id}
-                style={{
-                  padding: "10px",
-                  borderBottom: "1px solid #eee",
-                  cursor: "pointer"
-                }}
-                onClick={() => {
-                  setSelectedDoubt(d);
-                  loadDoubtChat(d.doubt_id);
-                }}
-              >
-                Doubt #{d.doubt_id}
-              </div>
-            ))
-          )}
+            {doubts.length === 0 ? (
+              <p>No doubts</p>
+            ) : (
+              doubts.map((d) => {
+                return (
+                  <div
+                    key={d.doubt_id}
+                    style={{
+                      padding: "10px",
+                      borderBottom: "1px solid #eee",
+                      cursor: "pointer",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center"
+                    }}
+                 onClick={async () => {
+                      setSelectedDoubt(d);
+                      setDoubts(prev =>
+                        prev.map(item =>
+                          item.doubt_id === d.doubt_id
+                            ? { ...item, unread_count: 0, has_unread: false }
+                            : item
+                         )
+                      );
+                      await loadDoubtChat(d.doubt_id);
+                    }}
+                  >
+                    <div>
+                      <strong>{d.course_name}</strong>
+                      <br />
+                      <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                        Doubt #{d.doubt_id}
+                      </span>
+                    </div>
+
+                    {d.has_unread && (
+                      <div
+                        style={{
+                          width: "10px",
+                          height: "10px",
+                          background: "#4dd55bff",
+                          borderRadius: "50%"
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })
+            )}
         </div>
 
         {/* RIGHT: CHAT */}
@@ -509,7 +538,7 @@ const sendMessage = async () => {
                         padding: "8px",
                         borderRadius: "6px",
                         background: msg.sender_id === user.id ? "#3b82f6" : "#e5e7eb",
-                        color: msg.sender_id === user.id ? "#fff" : "#000"
+                        color: msg.sender_id === user.id ? "#f2f3f2ff" : "#000"
                       }}
                     >
                       {msg.message}
@@ -535,8 +564,9 @@ const sendMessage = async () => {
           )}
 
         </div>
-
       </div>
+
+      
       ) : (
         <div className="table-responsive">
           <table className="data-table">

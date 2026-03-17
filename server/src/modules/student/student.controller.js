@@ -349,8 +349,13 @@ async function getStudentDoubts(req, res) {
 }
 async function getDoubtMessages(req, res) {
   try {
+    const studentId = req.user.id; //  IMPORTANT
     const { doubtId } = req.params;
 
+    //  mark messages as read
+    await studentService.markMessagesAsRead(studentId, doubtId);
+
+    // fetch messages
     const data = await studentService.getDoubtMessages(doubtId);
 
     res.status(200).json(data);

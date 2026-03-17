@@ -545,49 +545,167 @@ const sendMessage = async () => {
       )}
 
       {/* DOUBTS */}
-     {activeTab === "doubts" && (
-  <div style={{ display: "flex", gap: "1rem", height: "70vh" }}>
+    {activeTab === "doubts" && (
+  <div
+    style={{
+      display: "flex",
+      gap: "1.5rem",
+      height: "70vh",
+      background: "var(--bg-primary)",
+      padding: "1rem",
+      borderRadius: "10px",
+      border: "1px solid #e5e7eb"
+    }}
+  >
 
-    {/* LEFT: DOUBT THREADS */}
-    <div style={{ width: "30%", borderRight: "1px solid #ddd", overflowY: "auto" }}>
-      <h3>Student Doubts</h3>
+    {/* LEFT PANEL */}
+    <div style={{ width: "35%", display: "flex", flexDirection: "column", gap: "1rem" }}>
 
-      {doubts.length === 0 ? (
-        <p>No doubts</p>
-      ) : (
-        doubts.map(d => (
-          <div
-            key={d.doubt_id}
-            style={{
-              padding: "10px",
-              cursor: "pointer",
-              borderBottom: "1px solid #eee",
-              background: selectedDoubt?.doubt_id === d.doubt_id ? "#f3f4f6" : "transparent"
+      {/* HEADER */}
+      <div>
+        <h3 style={{ marginBottom: "0.5rem" }}>Student Doubts</h3>
+      </div>
+
+      {/* DOUBT LIST */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          border: "1px solid #e5e7eb",
+          borderRadius: "8px"
+        }}
+      >
+        {doubts.length === 0 ? (
+          <p style={{ padding: "1rem" }}>No doubts</p>
+        ) : (
+          doubts.map(d => (
+            <div
+              key={d.doubt_id}
+              style={{
+                padding: "12px",
+                cursor: "pointer",
+                borderBottom: "1px solid #eee",
+                background:
+                  selectedDoubt?.doubt_id === d.doubt_id
+                    ? "#eef2ff"
+                    : "transparent"
+              }}
+             onClick={async () => {
+                  setSelectedDoubt(d);
+
+                  await loadDoubtChat(d.doubt_id);
+
+                  const res = await api.get("/faculty/doubts");
+                  setDoubts(res.data);
             }}
-            onClick={() => {
-              setSelectedDoubt(d);
-              loadDoubtChat(d.doubt_id);
-            }}
-          >
-            <strong>Doubt #{d.doubt_id}</strong>
-            <br />
-            <small>{d.status}</small>
-          </div>
-        ))
-      )}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  
+                  {/* LEFT SIDE */}
+                  <div>
+                    <strong>{d.course_name}</strong>
+                    <br />
+
+                    <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                      {d.last_message
+                        ? d.last_message.slice(0, 40)
+                        : "No messages yet"}
+                    </span>
+
+                    <br />
+
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: d.status === "RESOLVED" ? "#16a34a" : "#f59e0b",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      {d.status}
+                    </span>
+                  </div>
+
+                  {/* RIGHT SIDE */}
+                  <div style={{ textAlign: "right" }}>
+                    
+                    {/* UNREAD BADGE */}
+                    {d.unread_count > 0 && (
+                      <div
+                        style={{
+                          background: "#41e794ff",
+                          color: "white",
+                          borderRadius: "50%",
+                          width: "15px",
+                          height: "15px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          marginBottom: "5px"
+                        }}
+                      >
+                        {/* {d.unread_count} */}
+                      </div>
+                    )}
+
+                    {/* TIME */}
+                    <span style={{ fontSize: "10px", color: "#9ca3af" }}>
+                      {d.last_message_time
+                        ? new Date(d.last_message_time).toLocaleTimeString()
+                        : ""}
+                    </span>
+                  </div>
+                </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
 
-    {/* RIGHT: CHAT */}
-    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-      
+    {/* RIGHT PANEL */}
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        border: "1px solid rgba(255, 255, 255, 1)",
+        borderRadius: "8px",
+        padding: "1rem"
+      }}
+    >
+
       {!selectedDoubt ? (
-        <p>Select a doubt to view messages</p>
+        <div style={{ textAlign: "center", marginTop: "2rem", color: "#6b7280" }}>
+          Select a doubt to view conversation
+        </div>
       ) : (
         <>
-          <h3>Doubt #{selectedDoubt.doubt_id}</h3>
+          {/* HEADER */}
+          <div style={{ marginBottom: "1rem" }}>
+            <h3>Doubt #{selectedDoubt.doubt_id}</h3>
+            <span
+              style={{
+                fontSize: "12px",
+                color: selectedDoubt.status === "RESOLVED" ? "#16a34a" : "#f59e0b",
+                fontWeight: "bold"
+              }}
+            >
+              {selectedDoubt.status}
+            </span>
+          </div>
 
-          {/* MESSAGES */}
-          <div style={{ flex: 1, overflowY: "auto", marginBottom: "1rem" }}>
+          {/* CHAT */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: "10px",
+              background: "#f9fafb",
+              borderRadius: "6px",
+              marginBottom: "1rem"
+            }}
+          >
             {messages.map(msg => (
               <div
                 key={msg.response_id}
@@ -601,11 +719,21 @@ const sendMessage = async () => {
                     display: "inline-block",
                     padding: "8px 12px",
                     borderRadius: "10px",
-                    background: msg.sender_role === "faculty" ? "#3b82f6" : "#e5e7eb",
-                    color: msg.sender_role === "faculty" ? "white" : "black"
+                    background:
+                      msg.sender_role === "faculty"
+                        ? "#3b82f6"
+                        : "#e5e7eb",
+                    color:
+                      msg.sender_role === "faculty"
+                        ? "white"
+                        : "black",
+                    maxWidth: "70%"
                   }}
                 >
-                  <strong>{msg.fname}</strong><br />
+                  <strong style={{ fontSize: "12px" }}>
+                    {msg.fname}
+                  </strong>
+                  <br />
                   {msg.message}
                 </div>
               </div>

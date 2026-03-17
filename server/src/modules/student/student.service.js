@@ -264,8 +264,8 @@ async function submitDoubt(studentId, courseId, message) {
 
     // 2. Insert FIRST message into chat table
     await client.query(
-      `INSERT INTO doubt_responses (doubt_id, sender_id, sender_role, message)
-       VALUES ($1, $2, 'student', $3)`,
+      `INSERT INTO doubt_responses (doubt_id, sender_id, sender_role, message, is_read)
+        VALUES ($1, $2, 'student', $3, true)`,
       [doubt.doubt_id, studentId, message]
     );
 
@@ -283,14 +283,41 @@ async function submitDoubt(studentId, courseId, message) {
 
 async function getStudentDoubts(studentId) {
   const result = await pool.query(
-    `SELECT d.doubt_id, d.status, d.created_at
+    `SELECT 
+        d.doubt_id,
+        d.status,
+        d.created_at,
+        c.name AS course_name,
+
+        EXISTS (
+          SELECT 1
+          FROM doubt_responses dr
+          WHERE dr.doubt_id = d.doubt_id
+          AND dr.sender_role = 'faculty'
+          AND dr.is_read = false
+        ) AS has_unread
+
      FROM doubts d
+     JOIN courses c ON c.course_id = d.course_id
+
      WHERE d.student_id = $1
+
      ORDER BY d.created_at DESC`,
     [studentId]
   );
 
   return result.rows;
+}
+
+async function markMessagesAsRead(studentId, doubtId) {
+  await pool.query(
+    `UPDATE doubt_responses
+     SET is_read = true
+     WHERE doubt_id = $1
+     AND sender_role = 'faculty'
+     AND is_read = false`,
+    [doubtId]
+  );
 }
 
 async function getDoubtMessages(doubtId) {
@@ -308,8 +335,8 @@ async function getDoubtMessages(doubtId) {
 
 async function sendDoubtMessage(doubtId, senderId, senderRole, message) {
   const result = await pool.query(
-    `INSERT INTO doubt_responses (doubt_id, sender_id, sender_role, message)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO doubt_responses (doubt_id, sender_id, sender_role, message, is_read)
+      VALUES ($1, $2, $3, $4, false)
      RETURNING *`,
     [doubtId, senderId, senderRole, message]
   );
@@ -757,5 +784,6 @@ module.exports = {
   getStudentDoubts,
   getDoubtMessages,
   sendDoubtMessage,
-  updateDoubtStatus
+  updateDoubtStatus,
+  markMessagesAsRead
 };

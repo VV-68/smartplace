@@ -207,11 +207,41 @@ exports.deleteMaterial = async (facultyId, materialId) => {
 // Get all doubts (threads) for faculty courses
 exports.getFacultyDoubts = async (facultyId) => {
   const result = await pool.query(
-    `SELECT d.doubt_id, d.course_id, d.status, d.created_at
-     FROM doubts d
-     JOIN courses c ON c.course_id = d.course_id
-     WHERE c.faculty_id = $1
-     ORDER BY d.created_at DESC`,
+    `
+    SELECT 
+      d.doubt_id,
+      d.status,
+      d.created_at,
+      c.name AS course_name,
+
+      -- last message
+      dr.message AS last_message,
+      dr.created_at AS last_message_time,
+
+      -- unread count (student messages not seen by faculty)
+      COUNT(CASE 
+        WHEN dr.sender_role = 'student' AND dr.is_read = false THEN 1 
+      END) AS unread_count
+
+    FROM doubts d
+    JOIN courses c ON c.course_id = d.course_id
+
+    LEFT JOIN LATERAL (
+      SELECT *
+      FROM doubt_responses dr2
+      WHERE dr2.doubt_id = d.doubt_id
+      ORDER BY dr2.created_at DESC
+      LIMIT 1
+    ) dr ON true
+
+    LEFT JOIN doubt_responses dr_all 
+      ON dr_all.doubt_id = d.doubt_id
+
+    WHERE c.faculty_id = $1
+
+    GROUP BY d.doubt_id, c.name, dr.message, dr.created_at
+    ORDER BY dr.created_at DESC NULLS LAST
+    `,
     [facultyId]
   );
 
@@ -243,6 +273,12 @@ exports.getDoubtMessages = async (facultyId, doubtId) => {
      ORDER BY dr.created_at ASC`,
     [doubtId]
   );
+  await pool.query(
+  `UPDATE doubt_responses
+   SET is_read = true
+   WHERE doubt_id = $1 AND sender_role = 'student'`,
+  [doubtId]
+);
 
   return result.rows;
 };
