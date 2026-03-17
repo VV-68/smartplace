@@ -682,17 +682,38 @@ const sendMessage = async () => {
       ) : (
         <>
           {/* HEADER */}
-          <div style={{ marginBottom: "1rem" }}>
-            <h3>Doubt #{selectedDoubt.doubt_id}</h3>
-            <span
-              style={{
-                fontSize: "12px",
-                color: selectedDoubt.status === "RESOLVED" ? "#16a34a" : "#f59e0b",
-                fontWeight: "bold"
-              }}
-            >
-              {selectedDoubt.status}
-            </span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Doubt #{selectedDoubt.doubt_id}</h3>
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: selectedDoubt.status === "RESOLVED" ? "#16a34a" : "#f59e0b",
+                  fontWeight: "bold"
+                }}
+              >
+                {selectedDoubt.status}
+              </span>
+            </div>
+            
+            {selectedDoubt.status !== "RESOLVED" && (
+              <button
+                className="btn btn-success"
+                onClick={async () => {
+                  try {
+                    await api.put(`/faculty/doubts/${selectedDoubt.doubt_id}/status`, { status: "RESOLVED" });
+                    setSelectedDoubt(prev => ({ ...prev, status: "RESOLVED" }));
+                    setDoubts(prev => prev.map(d => 
+                      d.doubt_id === selectedDoubt.doubt_id ? { ...d, status: "RESOLVED" } : d
+                    ));
+                  } catch (err) {
+                    alert("Failed to update status");
+                  }
+                }}
+              >
+                Mark as Resolved
+              </button>
+            )}
           </div>
 
           {/* CHAT */}
@@ -747,8 +768,13 @@ const sendMessage = async () => {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type message..."
+              disabled={selectedDoubt.status === "RESOLVED"}
             />
-            <button className="btn btn-primary" onClick={sendMessage}>
+            <button 
+              className="btn btn-primary" 
+              onClick={sendMessage}
+              disabled={selectedDoubt.status === "RESOLVED"}
+            >
               Send
             </button>
           </div>
