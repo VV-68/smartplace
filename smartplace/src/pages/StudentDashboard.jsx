@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import DashboardLayout from "../components/layout/DashboardLayout";
 import Onboarding from "./Onboarding";
@@ -40,6 +40,11 @@ export default function StudentDashboard({
   const [selectedDoubt, setSelectedDoubt] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [chatMessages]);
 
 
   const needsOnboarding = useMemo(() => {
@@ -613,6 +618,7 @@ const sendMessage = async () => {
                     </div>
                   </div>
                 ))}
+                <div ref={chatEndRef}></div>
               </div>
 
               <div style={{ display: "flex", gap: "10px" }}>
@@ -1082,7 +1088,20 @@ const sendMessage = async () => {
                   </td>
                   <td>
                     {offer.status === 'accepted' ? (
-                      <span className="status-badge placed" style={{ backgroundColor: '#16a34a', color: 'white' }}>PLACED</span>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span className="status-badge placed" style={{ backgroundColor: '#16a34a', color: 'white' }}>PLACED</span>
+                        <button className="btn btn-secondary btn-sm" onClick={async () => {
+                          if (!window.confirm("Are you sure you want to withdraw this offer?")) return;
+                          try {
+                            await api.delete(`/offers/${offer.application_id}/withdraw`);
+                            setMyOffers(prev => prev.map(o => o.offer_id === offer.offer_id ? { ...o, status: 'withdrawn' } : o));
+                            alert("Offer withdrawn successfully");
+                            fetchData("profile");
+                          } catch (err) {
+                            alert(err.response?.data?.error || "Failed to withdraw offer");
+                          }
+                        }}>Withdraw</button>
+                      </div>
                     ) : offer.status === 'offered' ? (
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button className="btn btn-primary btn-sm" disabled={profile?.placement_status === 'PLACED'} onClick={async () => {
@@ -1104,9 +1123,22 @@ const sendMessage = async () => {
                             alert(err.response?.data?.error || "Failed to reject offer");
                           }
                         }}>REJECT</button>
+                        <button className="btn btn-secondary btn-sm" onClick={async () => {
+                          if (!window.confirm("Are you sure you want to withdraw this offer?")) return;
+                          try {
+                            await api.delete(`/offers/${offer.application_id}/withdraw`);
+                            setMyOffers(prev => prev.map(o => o.offer_id === offer.offer_id ? { ...o, status: 'withdrawn' } : o));
+                            alert("Offer withdrawn successfully");
+                            fetchData("profile");
+                          } catch (err) {
+                            alert(err.response?.data?.error || "Failed to withdraw offer");
+                          }
+                        }}>Withdraw</button>
                       </div>
                     ) : offer.status === 'rejected' ? (
                       <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '13px' }}>Rejected</span>
+                    ) : offer.status === 'withdrawn' ? (
+                      <span style={{ color: '#6b7280', fontWeight: 'bold', fontStyle: 'italic', fontSize: '13px' }}>Withdrawn</span>
                     ) : (
                       <span style={{ color: '#6b7280', fontStyle: 'italic', fontSize: '13px' }}>Under Review</span>
                     )}

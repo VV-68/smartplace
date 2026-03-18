@@ -117,9 +117,7 @@ async function getCourseMaterials(courseId) {
   return result.rows;
 }
 
-/* =========================
-   ASSESSMENTS
-========================= */
+/* ASSESSMENTS */
 
 async function getUpcomingAssessments(studentId) {
   const result = await pool.query(
@@ -407,9 +405,7 @@ async function deleteDoubt(studentId, doubtId) {
 }
 
 
-/* =========================
-   PLACEMENT SLOTS
-========================= */
+/*PLACEMENT SLOT */
 
 async function checkStudentDriveEligibility(studentId, driveId) {
   // 1. Fetch student
@@ -572,9 +568,7 @@ async function getMyBookedSlots(studentId) {
   return result.rows;
 }
 
-/* =========================
-   OFFERS
-========================= */
+/*OFFERS */
 
 async function getEligibleOffers(studentId) {
   const result = await pool.query(
@@ -653,18 +647,13 @@ async function getMyApplications(studentId) {
        po.acceptance_deadline,
        oa.status,
        oa.application_id
-     FROM placement_offers po
-     JOIN placement_drives d ON d.drive_id = po.drive_id
-     JOIN drive_registrations dr ON dr.drive_id = d.drive_id
-     LEFT JOIN offer_applications oa ON oa.offer_id = po.offer_id AND oa.student_id = dr.student_id
-     WHERE dr.student_id = $1 AND dr.status = 'selected'`,
+     FROM offer_applications oa
+     JOIN placement_offers po ON po.offer_id = oa.offer_id
+     WHERE oa.student_id = $1`,
     [studentId]
   );
 
-  return result.rows.map(row => ({
-    ...row,
-    status: row.status || 'offered'
-  }));
+  return result.rows;
 }
 
 async function getOfferStatus(studentId, applicationId) {
@@ -679,16 +668,70 @@ async function getOfferStatus(studentId, applicationId) {
 }
 
 async function withdrawApplication(studentId, applicationId) {
-  const result = await pool.query(
-    `UPDATE offer_applications
-     SET status = 'withdrawn',
-         updated_at = NOW()
-     WHERE application_id = $1
-       AND student_id = $2
-     RETURNING *`,
-    [applicationId, studentId]
-  );
-  return result.rows[0];
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Validate ownership
+    const checkRes = await client.query(
+      `SELECT oa.*, po.company_id
+       FROM offer_applications oa
+       JOIN placement_offers po ON po.offer_id = oa.offer_id
+       WHERE oa.application_id = $1 AND oa.student_id = $2`,
+      [applicationId, studentId]
+    );
+
+    if (checkRes.rows.length === 0) {
+      throw new Error("Offer application not found.");
+    }
+
+    const application = checkRes.rows[0];
+
+    // 2. Reject if status invalid
+    if (application.status === 'withdrawn') {
+      throw new Error("Offer is already withdrawn.");
+    }
+    
+    if (application.status !== 'offered' && application.status !== 'accepted') {
+      throw new Error("Only 'offered' or 'accepted' applications can be withdrawn.");
+    }
+
+    // 3. Update application status
+    const updateRes = await client.query(
+      `UPDATE offer_applications
+       SET status = 'withdrawn',
+           updated_at = NOW()
+       WHERE application_id = $1
+       RETURNING *`,
+      [applicationId]
+    );
+
+   // 4. Decrement counter safely
+        await client.query(
+          `UPDATE students
+          SET offers_received = GREATEST(offers_received - 1, 0)
+          WHERE user_id = $1`,
+          [studentId]
+        );
+
+        // Manual eligibility fix
+        await client.query(
+          `UPDATE students
+          SET placement_eligible = true
+          WHERE user_id = $1
+          AND offers_received < 2
+          AND placement_status = 'NOT_PLACED'`,
+          [studentId]
+        );
+
+    await client.query("COMMIT");
+    return updateRes.rows[0];
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function respondToOffer(studentId, offerId, decision) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import axios from "axios";
 import DashboardLayout from "../components/layout/DashboardLayout";
 import "../styles/Dashboard.css";
@@ -35,6 +35,11 @@ export default function FacultyDashboard({
   const [selectedDoubt, setSelectedDoubt] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [messages]);
 
   /* ================= AXIOS INSTANCE ================= */
   const api = useMemo(() => {
@@ -777,6 +782,7 @@ const sendMessage = async () => {
                 </div>
               </div>
             ))}
+            <div ref={chatEndRef}></div>
           </div>
 
           {/* INPUT */}

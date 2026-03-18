@@ -190,8 +190,8 @@ router.get(
   studentController.getOfferStatus
 );
 
-router.put(
-  "/offers/withdraw/:applicationId",
+router.delete(
+  "/offers/:applicationId/withdraw",
   authMiddleware,
   studentController.withdrawApplication
 );
