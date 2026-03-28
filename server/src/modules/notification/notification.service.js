@@ -52,6 +52,21 @@ class NotificationService {
     return data;
   }
 
+  async markAllAsRead(receiver_id) {
+    const { data, error } = await supabaseAdmin
+      .from('notifications')
+      .update({ read_status: true })
+      .eq('receiver_id', receiver_id)
+      .eq('read_status', false);
+
+    if (error) {
+      console.error('Error marking all notifications as read:', error);
+      throw new Error('Failed to mark all notifications as read');
+    }
+
+    return { message: 'All notifications marked as read' };
+  }
+
   async clearAllNotifications(receiver_id) {
     const { data, error } = await supabaseAdmin
       .from('notifications')

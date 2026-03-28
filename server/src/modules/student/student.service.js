@@ -226,6 +226,13 @@ async function submitAssessment(studentId, assessmentId, submissionUrl) {
      RETURNING *`,
     [assessmentId, studentId, submissionUrl]
   );
+
+  const facRes = await pool.query(`SELECT c.faculty_id, a.title FROM assessments a JOIN courses c ON c.course_id = a.course_id WHERE a.assessment_id = $1`, [assessmentId]);
+  if (facRes.rows.length > 0) {
+    const notificationService = require("../notification/notification.service");
+    try { await notificationService.createNotification(facRes.rows[0].faculty_id, `A student submitted an assignment for ${facRes.rows[0].title}.`); } catch(e) {}
+  }
+
   return result.rows[0];
 }
 
@@ -373,6 +380,16 @@ async function sendDoubtMessage(doubtId, senderId, senderRole, message) {
      RETURNING *`,
     [doubtId, senderId, senderRole, message]
   );
+
+  const doubtInfo = await pool.query(`SELECT d.student_id, c.faculty_id FROM doubts d JOIN courses c ON c.course_id = d.course_id WHERE d.doubt_id = $1`, [doubtId]);
+  if (doubtInfo.rows.length > 0) {
+    const notificationService = require("../notification/notification.service");
+    try { 
+      const receiverId = senderRole === 'student' ? doubtInfo.rows[0].faculty_id : doubtInfo.rows[0].student_id;
+      const roleName = senderRole === 'student' ? 'Student' : 'Faculty';
+      await notificationService.createNotification(receiverId, `${roleName} sent a new message in doubt #${doubtId}.`); 
+    } catch(e) {}
+  }
 
   return result.rows[0];
 }

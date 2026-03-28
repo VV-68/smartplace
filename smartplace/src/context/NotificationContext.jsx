@@ -78,6 +78,21 @@ export function NotificationProvider({ user, accessToken, children }) {
     }
   };
 
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/api/notifications/read-all', {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, read_status: true })));
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
   const clearAll = async () => {
     try {
       const response = await fetch('http://localhost:3000/api/notifications/clear', {
@@ -93,7 +108,7 @@ export function NotificationProvider({ user, accessToken, children }) {
   };
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, clearAll }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, clearAll }}>
       {children}
     </NotificationContext.Provider>
   );
