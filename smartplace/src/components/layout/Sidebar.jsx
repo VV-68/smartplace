@@ -1,5 +1,4 @@
 import { supabase } from '../../lib/supabase';
-import NotificationBell from '../NotificationBell';
 
 export default function Sidebar({ user, items, activeItem, onItemClick, title = 'SmartPlace' }) {
   const handleLogout = async () => {
@@ -16,7 +15,6 @@ export default function Sidebar({ user, items, activeItem, onItemClick, title = 
             <span className="user-email">{user.email}</span>
             <span className="user-role">{user.user_metadata?.role || 'User'}</span>
           </div>
-          <NotificationBell />
         </div>
       </div>
 
@@ -176,3 +174,4 @@ export default function Sidebar({ user, items, activeItem, onItemClick, title = 
     </aside>
   );
 }
+

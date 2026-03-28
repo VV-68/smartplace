@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import DashboardLayout from "../components/layout/DashboardLayout";
+import NotificationBell from "../components/NotificationBell";
+import ThemeToggle from "../components/ThemeToggle";
 import Onboarding from "./Onboarding";
 import PlacementGuidance from "../components/PlacementGuidance";
 import AlumniNetwork from "../components/AlumniNetwork";
@@ -1298,6 +1300,10 @@ const sendMessage = async () => {
       onSidebarChange={setActiveTab}
       title="Student Portal"
     >
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', paddingBottom: '1rem' }}>
+        <ThemeToggle placement="header" />
+        <NotificationBell />
+      </div>
       <header className="page-header">
         <div className="header-flex">
           <div>

@@ -4,6 +4,8 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import '../styles/Dashboard.css';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import NotificationBell from '../components/NotificationBell';
+import ThemeToggle from '../components/ThemeToggle';
 
 const escapeCSV = (value) =>
   `"${String(value ?? "").replace(/"/g, '""')}"`;
@@ -443,6 +445,10 @@ export default function AdminDashboard({ user, accessToken }) {
       onSidebarChange={setActiveTab}
       title="Admin Control"
     >
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', paddingBottom: '1rem' }}>
+        <ThemeToggle placement="header" />
+        <NotificationBell />
+      </div>
       <style>{`
         .admin-stats-grid {
           display: grid;

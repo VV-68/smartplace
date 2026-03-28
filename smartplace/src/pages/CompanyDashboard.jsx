@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import NotificationBell from '../components/NotificationBell';
+import ThemeToggle from '../components/ThemeToggle';
 import Onboarding from './Onboarding';
 import '../styles/Dashboard.css';
 
@@ -662,6 +664,10 @@ export default function CompanyDashboard({ user, accessToken }) {
       onSidebarChange={setActiveTab}
       title="Company Recruiter Portal"
     >
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', paddingBottom: '1rem' }}>
+        <ThemeToggle placement="header" />
+        <NotificationBell />
+      </div>
       <header className="page-header">
         <h1 className="page-title">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h1>
         <p className="page-subtitle">Managing placement and recruitment activities</p>

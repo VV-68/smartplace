@@ -1,7 +1,5 @@
 import React from 'react';
 import Sidebar from './Sidebar';
-import ThemeToggle from '../ThemeToggle';
-
 export default function DashboardLayout({ 
   children, 
   user, 
@@ -12,7 +10,6 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="layout-container">
-      <ThemeToggle placement="floating" />
       <Sidebar 
         user={user} 
         items={sidebarItems} 
