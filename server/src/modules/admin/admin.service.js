@@ -148,7 +148,35 @@ exports.updateDriveStatus = async (driveId, status) => {
     [status, driveId]
   );
   if (!result.rowCount) throw new Error("Drive not found");
-  return result.rows[0];
+  
+  const drive = result.rows[0];
+  const notificationService = require("../notification/notification.service");
+  
+  // Notify company
+  if (status === 'APPROVED' || status === 'REJECTED') {
+    await notificationService.createNotification(drive.company_id, `Your placement drive for ${drive.drive_type} has been ${status.toLowerCase()}.`);
+  }
+
+  // Notify eligible students
+  if (status === 'APPROVED') {
+    let studentQuery = `SELECT user_id FROM students WHERE placement_eligible = true AND is_verified = true`;
+    if (drive.eligible_departments && drive.eligible_departments.length > 0) {
+      studentQuery += ` AND department = ANY($1)`;
+    }
+    const eligibleStudents = drive.eligible_departments && drive.eligible_departments.length > 0 
+      ? await pool.query(studentQuery, [drive.eligible_departments])
+      : await pool.query(studentQuery);
+      
+    for (const student of eligibleStudents.rows) {
+      try {
+        await notificationService.createNotification(student.user_id, `A new placement drive is available: ${drive.drive_type}. Check your eligibility.`);
+      } catch (err) {
+        console.error("Error sending drive notification", err);
+      }
+    }
+  }
+
+  return drive;
 };
 
 exports.getAllDrives = async () => {

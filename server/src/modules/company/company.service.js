@@ -73,7 +73,18 @@ async function requestPlacementDrive(userId, driveData) {
      RETURNING *`,
     [userId, drive_date, start_time, end_time, mode, drive_type, location, meeting_link, min_cgpa !== undefined ? min_cgpa : null, eligible_departments || null, registration_deadline || null]
   );
-  return result.rows[0];
+  
+  const drive = result.rows[0];
+  const notificationService = require("../notification/notification.service");
+  
+  const admins = await pool.query(`SELECT user_id FROM users WHERE role = 'admin'`);
+  for (const admin of admins.rows) {
+    try {
+      await notificationService.createNotification(admin.user_id, `A new placement drive request for ${drive_type} is pending approval from company ID: ${userId}.`);
+    } catch (e) {}
+  }
+
+  return drive;
 }
 
 async function getFormOptions() {
@@ -202,6 +213,17 @@ async function createOffer(userId, offerData) {
 
     await client.query("COMMIT");
 
+    const notificationService = require("../notification/notification.service");
+    const offeredStudents = await pool.query(
+      `SELECT student_id FROM drive_registrations WHERE drive_id = $1 AND status = 'selected'`,
+      [drive_id]
+    );
+    for (const st of offeredStudents.rows) {
+      try {
+        await notificationService.createNotification(st.student_id, `You have received a new placement offer: ${title}.`);
+      } catch (e) {}
+    }
+
     return offer;
 
   } catch (err) {
@@ -296,7 +318,14 @@ async function updateApplicantStatus(userId, registrationId, status) {
   if (result.rows.length === 0) {
     throw new Error("Applicant record not found or unauthorized");
   }
-  return result.rows[0];
+  
+  const registration = result.rows[0];
+  const notificationService = require("../notification/notification.service");
+  try {
+    await notificationService.createNotification(registration.student_id, `Your drive application status has been updated to: ${status}.`);
+  } catch (e) {}
+
+  return registration;
 }
 async function getOfferApplicants(companyId, offerId) {
         const offerRes = await pool.query(

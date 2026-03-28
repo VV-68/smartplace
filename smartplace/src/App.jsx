@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase";
 import Auth from "./components/Auth";
 import ThemeToggle from "./components/ThemeToggle";
+import { NotificationProvider } from './context/NotificationContext';
 import StudentDashboard from "./pages/StudentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import FacultyDashboard from "./pages/FacultyDashboard";
@@ -115,7 +116,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-      {renderDashboard()}
+      <NotificationProvider user={session.user} accessToken={session.access_token}>
+        {renderDashboard()}
+      </NotificationProvider>
     </div>
   );
 }

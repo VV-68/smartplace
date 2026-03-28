@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import NotificationBell from './NotificationBell';
 
 export default function NavBar({ user }) {
   const handleLogout = () => supabase.auth.signOut();
@@ -15,7 +16,7 @@ export default function NavBar({ user }) {
       <span style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>SmartPlace</span>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-        <span style={{ cursor: 'pointer' }} title="Notifications">🔔</span>
+        <NotificationBell />
         <span style={{ cursor: 'pointer' }} title="Messages">💬</span>
         <span style={{ cursor: 'pointer' }} title="Settings">⚙️</span>
 

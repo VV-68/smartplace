@@ -298,6 +298,12 @@ async function submitDoubt(studentId, courseId, message) {
 
     await client.query("COMMIT");
 
+    const facultyRes = await pool.query(`SELECT faculty_id FROM courses WHERE course_id = $1`, [courseId]);
+    if (facultyRes.rows.length > 0) {
+      const notificationService = require("../notification/notification.service");
+      try { await notificationService.createNotification(facultyRes.rows[0].faculty_id, `A new doubt was asked in your course.`); } catch(e) {}
+    }
+
     return doubt;
 
   } catch (err) {
@@ -543,6 +549,13 @@ async function bookSlot(studentId, driveId) {
      RETURNING *`,
     [driveId, studentId]
   );
+  
+  const driveRes = await pool.query(`SELECT company_id, drive_type FROM placement_drives WHERE drive_id = $1`, [driveId]);
+  if (driveRes.rows.length > 0) {
+      const notificationService = require("../notification/notification.service");
+      try { await notificationService.createNotification(driveRes.rows[0].company_id, `A student registered for your ${driveRes.rows[0].drive_type} drive.`); } catch(e){}
+  }
+
   return result.rows[0];
 }
 
@@ -797,14 +810,28 @@ async function respondToOffer(studentId, offerId, decision) {
     if (updateRes.rows.length === 0) throw new Error("Concurrent duplicate request detected.");
   }
 
-  // Set placement_status only
-  if (decision === 'accepted' && previousStatus !== 'accepted') {
-    await pool.query(
-      `UPDATE students 
-       SET placement_status = 'PLACED' 
-       WHERE user_id = $1`,
-      [studentId]
-    );
+  await pool.query(
+    `UPDATE students
+     SET placement_status = 'PLACED',
+         placed_company_id = (SELECT company_id FROM placement_offers WHERE offer_id = $1)
+     WHERE user_id = $2
+     AND $3 = 'accepted'`,
+    [offerId, studentId, decision]
+  );
+
+  const companyRes = await pool.query(`SELECT company_id, title FROM placement_offers WHERE offer_id = $1`, [offerId]);
+  if (companyRes.rows.length > 0) {
+      const companyId = companyRes.rows[0].company_id;
+      const title = companyRes.rows[0].title;
+      const notificationService = require("../notification/notification.service");
+      try { await notificationService.createNotification(companyId, `A student has ${decision} your offer: ${title}.`); } catch(e){}
+      
+      if (decision === 'accepted') {
+          const admins = await pool.query(`SELECT user_id FROM users WHERE role = 'admin'`);
+          for (const admin of admins.rows) {
+              try { await notificationService.createNotification(admin.user_id, `A student has accepted an offer from ${companyId}.`); } catch(e){}
+          }
+      }
   }
 
   return updateRes.rows[0];

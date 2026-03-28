@@ -136,7 +136,13 @@ exports.uploadMaterial = async (facultyId, courseId, data) => {
     [courseId, title, description, file_url, facultyId]
   );
 
-  return result.rows[0];
+  const material = result.rows[0];
+  const notificationService = require("../notification/notification.service");
+  const enrolledStudents = await pool.query(`SELECT student_id FROM enrollments WHERE course_id = $1`, [courseId]);
+  for (const st of enrolledStudents.rows) {
+    try { await notificationService.createNotification(st.student_id, `New material posted: ${title}`); } catch(e) {}
+  }
+  return material;
 };
 
 exports.getMaterials = async (facultyId, courseId) => {
@@ -307,7 +313,13 @@ exports.sendDoubtMessage = async (doubtId, facultyId, senderRole, message) => {
     [doubtId, facultyId, senderRole, message]
   );
 
-  return result.rows[0];
+  const response = result.rows[0];
+  const doubtRes = await pool.query(`SELECT student_id FROM doubts WHERE doubt_id = $1`, [doubtId]);
+  if (doubtRes.rows.length > 0) {
+    const notificationService = require("../notification/notification.service");
+    try { await notificationService.createNotification(doubtRes.rows[0].student_id, `Faculty replied to your doubt.`); } catch(e) {}
+  }
+  return response;
 };
 
 
@@ -360,7 +372,13 @@ exports.createAssessment = async (facultyId, courseId, data) => {
     [courseId, data.title, data.description, data.deadline]
   );
 
-  return result.rows[0];
+  const assessment = result.rows[0];
+  const notificationService = require("../notification/notification.service");
+  const enrolledStudents = await pool.query(`SELECT student_id FROM enrollments WHERE course_id = $1`, [courseId]);
+  for (const st of enrolledStudents.rows) {
+    try { await notificationService.createNotification(st.student_id, `New assessment posted: ${data.title}`); } catch(e) {}
+  }
+  return assessment;
 };
 
 exports.evaluateSubmission = async (facultyId, submissionId, score, feedback) => {
@@ -382,7 +400,10 @@ exports.evaluateSubmission = async (facultyId, submissionId, score, feedback) =>
     throw err;
   }
 
-  return result.rows[0];
+  const submission = result.rows[0];
+  const notificationService = require("../notification/notification.service");
+  try { await notificationService.createNotification(submission.student_id, `Your assessment result for submission ID ${submissionId} has been published.`); } catch(e) {}
+  return submission;
 };
 
 exports.getDoubtById = async (facultyId, doubtId) => {

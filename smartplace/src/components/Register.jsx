@@ -71,6 +71,15 @@ export default function Register({ onSwitchToLogin }) {
         if (profileError) {
           console.warn('Error syncing user details:', profileError.message);
         }
+        
+        try {
+          await fetch('http://localhost:3000/api/notifications/notifyAdmins', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: `A new user ${fname} ${lname} (${role}) has registered and is pending verification.` })
+          });
+        } catch(e) { console.warn('Failed to notify admins', e); }
+
         alert('Check your email for the confirmation link!');
         onSwitchToLogin();
       }
