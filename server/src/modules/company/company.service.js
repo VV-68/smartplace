@@ -1,8 +1,6 @@
 const pool = require("../../config/db");
 
-/* =========================
-   COMPANY PROFILE
-========================= */
+/*  COMPANY PROFILE*/
 
 async function getCompanyProfile(userId) {
   const result = await pool.query(
@@ -33,9 +31,7 @@ async function updateCompanyProfile(userId, updateData) {
   return result.rows[0];
 }
 
-/* =========================
-   PLACEMENT DRIVES
-========================= */
+/*PLACEMENT DRIVES*/
 
 async function requestPlacementDrive(userId, driveData) {
   const { drive_date, start_time, end_time, mode, drive_type, location, meeting_link, min_cgpa, eligible_departments, registration_deadline, graduation_year } = driveData;
@@ -110,7 +106,7 @@ async function deleteDrive(companyId, driveId) {
   try {
     await client.query("BEGIN");
 
-    // 🔒 Validate ownership
+    //  Validate ownership
     const driveCheck = await client.query(
       `SELECT 1 
        FROM placement_drives 
@@ -190,13 +186,20 @@ async function createOffer(userId, offerData) {
 
     //  STEP 1: Persist selected students as OFFERED
     await client.query(
-      `INSERT INTO offer_applications (offer_id, student_id, status)
-       SELECT $1, dr.student_id, 'offered'
-       FROM drive_registrations dr
-       WHERE dr.drive_id = $2
-       AND dr.status = 'selected'`,
-      [offer.offer_id, drive_id]
-    );
+        `INSERT INTO offer_applications (offer_id, student_id, status)
+        SELECT $1, dr.student_id, 'offered'
+        FROM drive_registrations dr
+        WHERE dr.drive_id = $2
+        AND dr.status = 'selected'
+        AND NOT EXISTS (
+            SELECT 1 
+            FROM offer_applications oa
+            JOIN placement_offers po ON oa.offer_id = po.offer_id
+            WHERE oa.student_id = dr.student_id
+            AND po.drive_id = dr.drive_id
+    )`,
+  [offer.offer_id, drive_id]
+);
 
     //  STEP 2: Increment offers_received
     await client.query(
@@ -252,39 +255,106 @@ async function getMyOffers(userId) {
 }
 
 async function deleteOffer(companyId, offerId) {
-  // Validate ownership
-  const offerCheck = await pool.query(
-    `SELECT 1 FROM placement_offers WHERE offer_id = $1 AND company_id = $2`,
-    [offerId, companyId]
-  );
+      const client = await pool.connect();
 
-  if (offerCheck.rows.length === 0) {
-    throw new Error("Invalid offer ID or unauthorized");
-  }
+      try {
+        await client.query("BEGIN");
 
-  // Check if any student accepted the offer
-  const acceptCheck = await pool.query(
-    `SELECT COUNT(*) FROM offer_applications WHERE offer_id = $1 AND status = 'accepted'`,
-    [offerId]
-  );
+        // Validate ownership
+        const offerCheck = await client.query(
+          `SELECT 1 FROM placement_offers 
+          WHERE offer_id = $1 AND company_id = $2`,
+          [offerId, companyId]
+        );
 
-  if (parseInt(acceptCheck.rows[0].count) > 0) {
-    throw new Error("Cannot delete offer. A student has already accepted it.");
-  }
+        if (offerCheck.rows.length === 0) {
+          throw new Error("Invalid offer ID or unauthorized");
+        }
 
-  // Delete dependent applications first
-  await pool.query(
-    `DELETE FROM offer_applications WHERE offer_id = $1`,
-    [offerId]
-  );
+        //Check accepted offers
+        const acceptCheck = await client.query(
+          `SELECT COUNT(*) FROM offer_applications 
+          WHERE offer_id = $1 AND status = 'accepted'`,
+          [offerId]
+        );
 
-  // Then delete offer
-  const result = await pool.query(
-    `DELETE FROM placement_offers WHERE offer_id = $1 AND company_id = $2 RETURNING *`,
-    [offerId, companyId]
-  );
+        if (parseInt(acceptCheck.rows[0].count) > 0) {
+          throw new Error("Cannot delete offer. A student has already accepted it.");
+        }
 
-  return result.rows[0];
+        //  Get affected students
+        const studentsRes = await client.query(
+          `SELECT student_id FROM offer_applications 
+          WHERE offer_id = $1`,
+          [offerId]
+        );
+
+        const studentIds = studentsRes.rows.map(r => r.student_id);
+
+        // Decrement offers_received
+        if (studentIds.length > 0) {
+          await client.query(
+            `UPDATE students
+            SET offers_received = GREATEST(offers_received - 1, 0)
+            WHERE user_id = ANY($1)`,
+            [studentIds]
+          );
+
+          // Auto-update eligibility
+          await client.query(
+            `UPDATE students
+            SET placement_eligible = TRUE
+            WHERE user_id = ANY($1)
+            AND offers_received < 2
+            AND placement_status = 'NOT_PLACED'`,
+            [studentIds]
+          );
+        }
+
+        // Delete applications
+        await client.query(
+          `DELETE FROM offer_applications WHERE offer_id = $1`,
+          [offerId]
+        );
+
+        // Get offer details for notification
+        const offerRes = await client.query(
+          `SELECT title FROM placement_offers WHERE offer_id = $1`,
+          [offerId]
+        );
+
+        const offerTitle = offerRes.rows[0]?.title || "an offer";
+
+        // Delete offer
+        const result = await client.query(
+          `DELETE FROM placement_offers 
+          WHERE offer_id = $1 AND company_id = $2 
+          RETURNING *`,
+          [offerId, companyId]
+        );
+
+        await client.query("COMMIT");
+
+        // Send notifications (outside transaction)
+        const notificationService = require("../notification/notification.service");
+
+        for (const studentId of studentIds) {
+          try {
+            await notificationService.createNotification(
+              studentId,
+              `An offer (${offerTitle}) has been withdrawn by the company.`
+            );
+          } catch (e) {}
+        }
+
+        return result.rows[0];
+
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
 }
 
 /* APPLICANTS*/
