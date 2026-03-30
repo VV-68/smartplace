@@ -226,6 +226,13 @@ async function submitAssessment(studentId, assessmentId, submissionUrl) {
      RETURNING *`,
     [assessmentId, studentId, submissionUrl]
   );
+
+  const facRes = await pool.query(`SELECT c.faculty_id, a.title FROM assessments a JOIN courses c ON c.course_id = a.course_id WHERE a.assessment_id = $1`, [assessmentId]);
+  if (facRes.rows.length > 0) {
+    const notificationService = require("../notification/notification.service");
+    try { await notificationService.createNotification(facRes.rows[0].faculty_id, `A student submitted an assignment for ${facRes.rows[0].title}.`); } catch(e) {}
+  }
+
   return result.rows[0];
 }
 
@@ -298,6 +305,12 @@ async function submitDoubt(studentId, courseId, message) {
 
     await client.query("COMMIT");
 
+    const facultyRes = await pool.query(`SELECT faculty_id FROM courses WHERE course_id = $1`, [courseId]);
+    if (facultyRes.rows.length > 0) {
+      const notificationService = require("../notification/notification.service");
+      try { await notificationService.createNotification(facultyRes.rows[0].faculty_id, `A new doubt was asked in your course.`); } catch(e) {}
+    }
+
     return doubt;
 
   } catch (err) {
@@ -367,6 +380,16 @@ async function sendDoubtMessage(doubtId, senderId, senderRole, message) {
      RETURNING *`,
     [doubtId, senderId, senderRole, message]
   );
+
+  const doubtInfo = await pool.query(`SELECT d.student_id, c.faculty_id FROM doubts d JOIN courses c ON c.course_id = d.course_id WHERE d.doubt_id = $1`, [doubtId]);
+  if (doubtInfo.rows.length > 0) {
+    const notificationService = require("../notification/notification.service");
+    try { 
+      const receiverId = senderRole === 'student' ? doubtInfo.rows[0].faculty_id : doubtInfo.rows[0].student_id;
+      const roleName = senderRole === 'student' ? 'Student' : 'Faculty';
+      await notificationService.createNotification(receiverId, `${roleName} sent a new message in doubt #${doubtId}.`); 
+    } catch(e) {}
+  }
 
   return result.rows[0];
 }
@@ -543,6 +566,13 @@ async function bookSlot(studentId, driveId) {
      RETURNING *`,
     [driveId, studentId]
   );
+  
+  const driveRes = await pool.query(`SELECT company_id, drive_type FROM placement_drives WHERE drive_id = $1`, [driveId]);
+  if (driveRes.rows.length > 0) {
+      const notificationService = require("../notification/notification.service");
+      try { await notificationService.createNotification(driveRes.rows[0].company_id, `A student registered for your ${driveRes.rows[0].drive_type} drive.`); } catch(e){}
+  }
+
   return result.rows[0];
 }
 
@@ -667,65 +697,44 @@ async function getOfferStatus(studentId, applicationId) {
   return result.rows[0];
 }
 
-async function withdrawApplication(studentId, applicationId) {
+
+async function withdrawApplication(studentId, driveId) {
   const client = await pool.connect();
+
   try {
     await client.query("BEGIN");
 
-    // 1. Validate ownership
+    // 🔹 1. Validate registration exists
     const checkRes = await client.query(
-      `SELECT oa.*, po.company_id
-       FROM offer_applications oa
-       JOIN placement_offers po ON po.offer_id = oa.offer_id
-       WHERE oa.application_id = $1 AND oa.student_id = $2`,
-      [applicationId, studentId]
+      `SELECT *
+       FROM drive_registrations
+       WHERE drive_id = $1 AND student_id = $2`,
+      [driveId, studentId]
     );
 
     if (checkRes.rows.length === 0) {
-      throw new Error("Offer application not found.");
+      throw new Error("Drive registration not found.");
     }
 
-    const application = checkRes.rows[0];
+    const registration = checkRes.rows[0];
 
-    // 2. Reject if status invalid
-    if (application.status === 'withdrawn') {
-      throw new Error("Offer is already withdrawn.");
-    }
-    
-    if (application.status !== 'offered' && application.status !== 'accepted') {
-      throw new Error("Only 'offered' or 'accepted' applications can be withdrawn.");
+    // 🔹 2. Allow withdrawal ONLY if status = 'registered'
+    if (registration.status !== 'registered') {
+      throw new Error("Cannot withdraw after shortlisting or selection.");
     }
 
-    // 3. Update application status
-    const updateRes = await client.query(
-      `UPDATE offer_applications
-       SET status = 'withdrawn',
-           updated_at = NOW()
-       WHERE application_id = $1
+    // 🔹 3. Delete registration (better than marking withdrawn)
+    const deleteRes = await client.query(
+      `DELETE FROM drive_registrations
+       WHERE drive_id = $1 AND student_id = $2
        RETURNING *`,
-      [applicationId]
+      [driveId, studentId]
     );
 
-   // 4. Decrement counter safely
-        await client.query(
-          `UPDATE students
-          SET offers_received = GREATEST(offers_received - 1, 0)
-          WHERE user_id = $1`,
-          [studentId]
-        );
-
-        // Manual eligibility fix
-        await client.query(
-          `UPDATE students
-          SET placement_eligible = true
-          WHERE user_id = $1
-          AND offers_received < 2
-          AND placement_status = 'NOT_PLACED'`,
-          [studentId]
-        );
-
     await client.query("COMMIT");
-    return updateRes.rows[0];
+
+    return deleteRes.rows[0];
+
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -735,80 +744,157 @@ async function withdrawApplication(studentId, applicationId) {
 }
 
 async function respondToOffer(studentId, offerId, decision) {
-  if (!['accepted', 'rejected'].includes(decision)) {
-    throw new Error("Invalid decision");
-  }
+        if (!['accepted', 'rejected'].includes(decision)) {
+          throw new Error("Invalid decision");
+        }
 
-  const selectedCheck = await pool.query(
-    `SELECT dr.status FROM drive_registrations dr
-     JOIN placement_offers po ON po.drive_id = dr.drive_id
-     WHERE po.offer_id = $1 AND dr.student_id = $2`,
-    [offerId, studentId]
-  );
+        const client = await pool.connect();
 
-  if (selectedCheck.rows.length === 0 || selectedCheck.rows[0].status !== 'selected') {
-    throw new Error("Offer not available for this student");
-  }
+        try {
+          await client.query("BEGIN");
 
-  const existingApp = await pool.query(
-    `SELECT application_id, status FROM offer_applications WHERE offer_id = $1 AND student_id = $2`,
-    [offerId, studentId]
-  );
+          // 🔹 Check if student is selected for this drive
+          const selectedCheck = await client.query(
+            `SELECT dr.status, po.drive_id
+            FROM drive_registrations dr
+            JOIN placement_offers po ON po.drive_id = dr.drive_id
+            WHERE po.offer_id = $1 AND dr.student_id = $2`,
+            [offerId, studentId]
+          );
 
-  // Check if student is already placed
-  const studentDetails = await pool.query(
-    `SELECT placement_status FROM students WHERE user_id = $1`,
-    [studentId]
-  );
+          if (
+            selectedCheck.rows.length === 0 ||
+            selectedCheck.rows[0].status !== 'selected'
+          ) {
+            throw new Error("Offer not available for this student");
+          }
 
-  if (decision === 'accepted' && studentDetails.rows[0]?.placement_status === 'PLACED') {
-    throw new Error("Student already placed. Cannot accept another offer.");
-  }
+          const driveId = selectedCheck.rows[0].drive_id;
 
-  let updateRes;
-  let previousStatus = null;
+          // 🔹 Prevent multiple accepted offers for same drive
+          const alreadyAccepted = await client.query(
+            `SELECT 1
+            FROM offer_applications oa
+            JOIN placement_offers po ON oa.offer_id = po.offer_id
+            WHERE oa.student_id = $1
+            AND po.drive_id = $2
+            AND oa.status = 'accepted'`,
+            [studentId, driveId]
+          );
 
-  if (existingApp.rows.length > 0) {
-    previousStatus = existingApp.rows[0].status;
-    const setQuery = decision === 'accepted'
-      ? `SET status = $1, updated_at = NOW(), accepted_at = NOW()`
-      : `SET status = $1, updated_at = NOW()`;
+          if (decision === 'accepted' && alreadyAccepted.rows.length > 0) {
+            throw new Error("Already accepted an offer for this drive");
+          }
 
-    updateRes = await pool.query(
-      `UPDATE offer_applications
-       ${setQuery}
-       WHERE application_id = $2
-       RETURNING *`,
-      [decision, existingApp.rows[0].application_id]
-    );
-  } else {
-    // Prevent duplicate insertion race condition
-    const query = decision === 'accepted'
-      ? `INSERT INTO offer_applications (offer_id, student_id, status, applied_at, updated_at, accepted_at) 
-         SELECT $1, $2, $3, NOW(), NOW(), NOW() 
-         WHERE NOT EXISTS (SELECT 1 FROM offer_applications WHERE offer_id = $1 AND student_id = $2)
-         RETURNING *`
-      : `INSERT INTO offer_applications (offer_id, student_id, status, applied_at, updated_at) 
-         SELECT $1, $2, $3, NOW(), NOW()
-         WHERE NOT EXISTS (SELECT 1 FROM offer_applications WHERE offer_id = $1 AND student_id = $2)
-         RETURNING *`;
+          // 🔹 Check if already applied
+          const existingApp = await client.query(
+            `SELECT application_id, status 
+            FROM offer_applications 
+            WHERE offer_id = $1 AND student_id = $2`,
+            [offerId, studentId]
+          );
 
-    updateRes = await pool.query(query, [offerId, studentId, decision]);
-    if (updateRes.rows.length === 0) throw new Error("Concurrent duplicate request detected.");
-  }
+          let updateRes;
 
-  // Set placement_status only
-  if (decision === 'accepted' && previousStatus !== 'accepted') {
-    await pool.query(
-      `UPDATE students 
-       SET placement_status = 'PLACED' 
-       WHERE user_id = $1`,
-      [studentId]
-    );
-  }
+          if (existingApp.rows.length > 0) {
+            const setQuery =
+              decision === 'accepted'
+                ? `SET status = $1, updated_at = NOW(), accepted_at = NOW()`
+                : `SET status = $1, updated_at = NOW()`;
 
-  return updateRes.rows[0];
-}
+            updateRes = await client.query(
+              `UPDATE offer_applications
+              ${setQuery}
+              WHERE application_id = $2
+              RETURNING *`,
+              [decision, existingApp.rows[0].application_id]
+            );
+          } else {
+            // 🔹 Safe insert (avoid duplicates)
+            const insertQuery =
+              decision === 'accepted'
+                ? `INSERT INTO offer_applications 
+                  (offer_id, student_id, status, applied_at, updated_at, accepted_at)
+                  SELECT $1, $2, $3, NOW(), NOW(), NOW()
+                  WHERE NOT EXISTS (
+                    SELECT 1 FROM offer_applications 
+                    WHERE offer_id = $1 AND student_id = $2
+                  )
+                  RETURNING *`
+                : `INSERT INTO offer_applications 
+                  (offer_id, student_id, status, applied_at, updated_at)
+                  SELECT $1, $2, $3, NOW(), NOW()
+                  WHERE NOT EXISTS (
+                    SELECT 1 FROM offer_applications 
+                    WHERE offer_id = $1 AND student_id = $2
+                  )
+                  RETURNING *`;
+
+            updateRes = await client.query(insertQuery, [
+              offerId,
+              studentId,
+              decision,
+            ]);
+
+            if (updateRes.rows.length === 0) {
+              throw new Error("Concurrent duplicate request detected.");
+            }
+          }
+
+          // 🔹 Update placement status ONLY if accepted
+          if (decision === 'accepted') {
+            await client.query(
+              `UPDATE students
+              SET placement_status = 'PLACED'
+              WHERE user_id = $1`,
+              [studentId]
+            );
+          }
+
+          await client.query("COMMIT");
+
+          // 🔹 Notifications (outside transaction)
+          const companyRes = await pool.query(
+            `SELECT company_id, title FROM placement_offers WHERE offer_id = $1`,
+            [offerId]
+          );
+
+          if (companyRes.rows.length > 0) {
+            const { company_id, title } = companyRes.rows[0];
+            const notificationService = require("../notification/notification.service");
+
+            try {
+              await notificationService.createNotification(
+                company_id,
+                `A student has ${decision} your offer: ${title}.`
+              );
+            } catch (e) {}
+
+            if (decision === 'accepted') {
+              const admins = await pool.query(
+                `SELECT user_id FROM users WHERE role = 'admin'`
+              );
+
+              for (const admin of admins.rows) {
+                try {
+                  await notificationService.createNotification(
+                    admin.user_id,
+                    `A student has accepted an offer from company ${company_id}.`
+                  );
+                } catch (e) {}
+              }
+            }
+          }
+
+          return updateRes.rows[0];
+
+        } catch (err) {
+          await client.query("ROLLBACK");
+          throw err;
+        } finally {
+          client.release();
+        }
+      }
 
 async function getOfferHistory(studentId) {
   const result = await pool.query(

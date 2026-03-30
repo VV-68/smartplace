@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import DashboardLayout from "../components/layout/DashboardLayout";
+import NotificationBell from "../components/NotificationBell";
+import ThemeToggle from "../components/ThemeToggle";
 import Onboarding from "./Onboarding";
 import PlacementGuidance from "../components/PlacementGuidance";
 import AlumniNetwork from "../components/AlumniNetwork";
@@ -1042,18 +1044,33 @@ const sendMessage = async () => {
                   <td>{drive.drive_type?.toUpperCase()}</td>
                   <td>{drive.mode?.toUpperCase()}</td>
                   <td>
-                    <span
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '0.85rem',
-                        backgroundColor: getStatusColor(drive.status)
-                      }}
-                    >
-                      {drive.status?.toUpperCase() || 'UNKNOWN'}
-                    </span>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '0.85rem',
+                          backgroundColor: getStatusColor(drive.status)
+                        }}
+                      >
+                        {drive.status?.toUpperCase() || 'UNKNOWN'}
+                      </span>
+                      {drive.status === 'registered' && (
+                        <button className="btn btn-secondary btn-sm" onClick={async () => {
+                          if (!window.confirm("Are you sure you want to withdraw from this drive?")) return;
+                          try {
+                            await api.delete(`/offers/${drive.drive_id}/withdraw`);
+                            setDriveStatus(prev => prev.filter(d => d.drive_id !== drive.drive_id));
+                            alert("Withdrawn from drive successfully");
+                            fetchData("profile");
+                          } catch (err) {
+                            alert(err.response?.data?.error || "Failed to withdraw");
+                          }
+                        }}>Withdraw</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -1103,17 +1120,6 @@ const sendMessage = async () => {
                     {offer.status === 'accepted' ? (
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <span className="status-badge placed" style={{ backgroundColor: '#16a34a', color: 'white' }}>PLACED</span>
-                        <button className="btn btn-secondary btn-sm" onClick={async () => {
-                          if (!window.confirm("Are you sure you want to withdraw this offer?")) return;
-                          try {
-                            await api.delete(`/offers/${offer.application_id}/withdraw`);
-                            setMyOffers(prev => prev.map(o => o.offer_id === offer.offer_id ? { ...o, status: 'withdrawn' } : o));
-                            alert("Offer withdrawn successfully");
-                            fetchData("profile");
-                          } catch (err) {
-                            alert(err.response?.data?.error || "Failed to withdraw offer");
-                          }
-                        }}>Withdraw</button>
                       </div>
                     ) : offer.status === 'offered' ? (
                       <div style={{ display: 'flex', gap: '8px' }}>
@@ -1136,17 +1142,6 @@ const sendMessage = async () => {
                             alert(err.response?.data?.error || "Failed to reject offer");
                           }
                         }}>REJECT</button>
-                        <button className="btn btn-secondary btn-sm" onClick={async () => {
-                          if (!window.confirm("Are you sure you want to withdraw this offer?")) return;
-                          try {
-                            await api.delete(`/offers/${offer.application_id}/withdraw`);
-                            setMyOffers(prev => prev.map(o => o.offer_id === offer.offer_id ? { ...o, status: 'withdrawn' } : o));
-                            alert("Offer withdrawn successfully");
-                            fetchData("profile");
-                          } catch (err) {
-                            alert(err.response?.data?.error || "Failed to withdraw offer");
-                          }
-                        }}>Withdraw</button>
                       </div>
                     ) : offer.status === 'rejected' ? (
                       <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '13px' }}>Rejected</span>
@@ -1298,6 +1293,10 @@ const sendMessage = async () => {
       onSidebarChange={setActiveTab}
       title="Student Portal"
     >
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', paddingBottom: '1rem' }}>
+        <ThemeToggle placement="header" />
+        <NotificationBell />
+      </div>
       <header className="page-header">
         <div className="header-flex">
           <div>

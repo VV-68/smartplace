@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import NotificationBell from '../components/NotificationBell';
+import ThemeToggle from '../components/ThemeToggle';
 import PlacementGuidance from '../components/PlacementGuidance';
 import Onboarding from './Onboarding';
 import AlumniProfile from '../components/AlumniProfile';
@@ -53,6 +55,10 @@ export default function AlumniDashboard({ user, accessToken }) {
       onSidebarChange={setActiveTab}
       title="Alumni Connect"
     >
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', paddingBottom: '1rem' }}>
+        <ThemeToggle placement="header" />
+        <NotificationBell />
+      </div>
       <header className="page-header">
         <h1 className="page-title">Alumni Dashboard</h1>
         <p className="page-subtitle">Help the next generation achieve their goals</p>

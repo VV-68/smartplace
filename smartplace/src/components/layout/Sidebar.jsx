@@ -174,3 +174,4 @@ export default function Sidebar({ user, items, activeItem, onItemClick, title = 
     </aside>
   );
 }
+

@@ -87,7 +87,17 @@ async function createDiscussion(userId, discussionData) {
      RETURNING *`,
     [userId, title, content, company_tag]
   );
-  return result.rows[0];
+  
+  const discussion = result.rows[0];
+  const notificationService = require("../notification/notification.service");
+  const alumni = await pool.query(`SELECT user_id FROM users WHERE role = 'alumni'`);
+  for (const al of alumni.rows) {
+    if (al.user_id !== userId) {
+        try { await notificationService.createNotification(al.user_id, `New discussion posted in Alumni Network: ${title}`); } catch(e){}
+    }
+  }
+
+  return discussion;
 }
 
 async function getDiscussionById(discussionId) {
@@ -138,7 +148,17 @@ async function createReply(userId, discussionId, content) {
          RETURNING *`,
         [userId, discussionId, content]
     );
-    return result.rows[0];
+    
+    const reply = result.rows[0];
+    const notificationService = require("../notification/notification.service");
+    const discRes = await pool.query('SELECT user_id, title FROM placement_discussions WHERE id = $1', [discussionId]);
+    if (discRes.rows.length > 0) {
+        if (discRes.rows[0].user_id !== userId) {
+            try { await notificationService.createNotification(discRes.rows[0].user_id, `Someone replied to your discussion: ${discRes.rows[0].title}`); } catch(e){}
+        }
+    }
+    
+    return reply;
 }
 
 module.exports = {

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import axios from "axios";
 import DashboardLayout from "../components/layout/DashboardLayout";
+import NotificationBell from "../components/NotificationBell";
+import ThemeToggle from "../components/ThemeToggle";
 import "../styles/Dashboard.css";
 
 export default function FacultyDashboard({
@@ -340,6 +342,10 @@ const sendMessage = async () => {
 }}
       title="Faculty Portal"
     >
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', paddingBottom: '1rem' }}>
+        <ThemeToggle placement="header" />
+        <NotificationBell />
+      </div>
       <header className="page-header">
         <h1 className="page-title">
           {activeTab === "classes" ? "My Courses" : 
