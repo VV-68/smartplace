@@ -192,12 +192,16 @@ JWT_SECRET=your_secret
 
 ### Run Backend
 
+cd server
+
 npm run dev
 
 ### Run Frontend
 
-cd client
+cd smartplace
+
 npm install
+
 npm run dev
 
 ---
